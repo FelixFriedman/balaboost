@@ -1,0 +1,82 @@
+@use '../../../../styles/mixins' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.dashboard-header {
+  h1 {
+    margin-bottom: var(--spacing-xs);
+  }
+  p {
+    margin: 0;
+  }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.glass-card {
+  @include glass-panel;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  
+  h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--color-info);
+  }
+}
+
+.label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  
+  &.positive {
+    color: var(--color-success);
+  }
+  
+  &.negative {
+    color: var(--color-danger);
+  }
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.tag-pill {
+  padding: 6px 12px;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-brand-primary);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+}
+
+.code-block {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--color-text-tertiary);
+  background: rgba(0, 0, 0, 0.2);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+}

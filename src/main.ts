@@ -14,6 +14,9 @@ import { PageNotFoundComponent } from './app/shared/components';
 import { HomeComponent } from './app/home/home.component';
 import { DetailComponent } from './app/detail/detail.component';
 
+import { AppLayoutComponent } from './app/shared/layout/app-layout/app-layout.component';
+import { BotsDashboardComponent } from './app/features/bots/bots-dashboard/bots-dashboard.component';
+
 if (APP_CONFIG.production) {
   enableProdMode();
 }
@@ -32,16 +35,26 @@ bootstrapApplication(AppComponent, {
     provideRouter([
       {
         path: '',
-        redirectTo: 'home',
-        pathMatch: 'full'
-      },
-      {
-        path: 'home',
-        component: HomeComponent
-      },
-      {
-        path: 'detail',
-        component: DetailComponent
+        component: AppLayoutComponent,
+        children: [
+          {
+            path: '',
+            redirectTo: 'bots',
+            pathMatch: 'full'
+          },
+          {
+            path: 'bots',
+            component: BotsDashboardComponent
+          },
+          {
+            path: 'home',
+            component: HomeComponent
+          },
+          {
+            path: 'detail',
+            component: DetailComponent
+          }
+        ]
       },
       {
         path: '**',

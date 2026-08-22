@@ -1,7 +1,7 @@
 {
-  "name": "angular-electron",
+  "name": "balaboost",
   "version": "17.1.0",
-  "description": "Angular 21 with Electron 41 (Typescript + SASS + Hot Reload)",
+  "description": "Balaboost - Options trading and wealth building desktop application",
   "homepage": "https://github.com/belnadris/angular-electron",
   "author": {
     "name": "Maxime GRIS",

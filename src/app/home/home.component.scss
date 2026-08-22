@@ -1,3 +1,48 @@
 :host {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--app-bg, #121216);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.dashboard-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
   
+  &.is-dragging {
+    cursor: col-resize;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+.panel-left {
+  width: var(--left-width, 250px);
+  flex-shrink: 0;
+}
+
+.panel-center {
+  flex-grow: 1;
+  min-width: 200px;
+}
+
+.panel-right {
+  width: var(--right-width, 300px);
+  flex-shrink: 0;
+}
+
+.resizer {
+  width: 2px;
+  margin: 0 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  
+  &:hover, &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
 }

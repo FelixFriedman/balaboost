@@ -1,0 +1,46 @@
+<div class="dashboard-header">
+  <div>
+    <h1>Bots & Automations</h1>
+    <p>Manage your active algorithmic trading bots.</p>
+  </div>
+</div>
+
+<div class="metrics-grid">
+  <!-- Temporary placeholder for Summary Cards -->
+  <div class="glass-card">
+    <div class="label">Total P/L</div>
+    <div class="value positive">+$1,240.50</div>
+  </div>
+  <div class="glass-card">
+    <div class="label">Win Rate</div>
+    <div class="value">68.5%</div>
+  </div>
+  <div class="glass-card">
+    <div class="label">Active Capital</div>
+    <div class="value">$24,500.00</div>
+  </div>
+</div>
+
+<div class="main-content">
+  <div class="glass-card" style="margin-bottom: var(--spacing-lg);">
+    <h3>Market State ($SPX)</h3>
+    <div *ngIf="marketTags && marketTags.length > 0" class="tags-container">
+      <span *ngFor="let tag of marketTags" class="tag-pill">
+        {{ tag }}
+      </span>
+    </div>
+    <div *ngIf="!marketTags || marketTags.length === 0" style="color: var(--color-text-tertiary);">
+      Evaluating indicators...
+    </div>
+  </div>
+
+  <div class="glass-card">
+    <h3>Tradier API Test ($SPX)</h3>
+    <div *ngIf="quoteData">
+      <pre class="code-block">{{ quoteData | json }}</pre>
+    </div>
+    <div *ngIf="!quoteData" style="color: var(--color-text-tertiary);">
+      Fetching quote...
+    </div>
+  </div>
+</div>

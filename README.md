@@ -12,6 +12,21 @@
 [![Star on GitHub][github-star-badge]][github-star]
 [![Tweet][twitter-badge]][twitter]
 
+# Trading Algorithm Metrics Dictionary
+
+This application includes a robust, automated trading algorithm designed to read historical market data and evaluate the state of the market using mathematical technical indicators. The bot logic relies on the following metrics:
+
+| Metric | Definition | How the Bot Uses It |
+|--------|------------|---------------------|
+| **EMA (Exponential Moving Average)** | A moving average that places a greater weight on the most recent data points. | Used in multiple time horizons (8, 9, 20, 21, and 100 periods) to determine short and long-term trend direction. The bot specifically looks for crossovers (e.g. 8 EMA crossing above 21 EMA) to signal trend reversals. |
+| **STOCH (Stochastic Oscillator)** | A momentum indicator comparing a particular closing price to a range of its prices over a certain period. | The bot uses a 5-3-3 setting. Values above 40 are generally evaluated favorably for bullish momentum, while values below 40 are checked for bearish momentum. |
+| **ADX (Average Directional Index)** | Used to measure the overall strength of a trend. | The bot checks if the 14-period ADX is > 25, which mathematically confirms that a trend (either bull or bear) is strong enough to trust. |
+| **RSI (Relative Strength Index)** | A momentum oscillator that measures the speed and change of price movements on a scale of 0 to 100. | Used to detect over-extended markets. The bot flags an "overbought market" if RSI > 75 and an "oversold market" if RSI < 30. |
+| **CCI (Commodity Channel Index)** | Measures a security’s variation from its statistical mean. | Combined with RSI as a secondary confirmation. Values > +100 signal extreme overbought conditions, while values < -100 signal extreme oversold conditions. |
+| **MACD (Moving Average Convergence Divergence)** | A trend-following momentum indicator that shows the relationship between two moving averages. | Used specifically when the price falls below the 100 EMA to verify negative momentum by checking if the MACD line has crossed below the Signal line. |
+
+---
+
 # Introduction
 
 Bootstrap and package your project with Angular 21 and Electron 41 (Typescript + SASS + Hot Reload) for creating Desktop applications.

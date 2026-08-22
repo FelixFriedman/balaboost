@@ -56,3 +56,6 @@ Thumbs.db
 CLAUDE.local.md
 
 .worktrees
+
+# Environment files
+.env

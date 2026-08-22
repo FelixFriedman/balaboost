@@ -1,0 +1,12 @@
+<div class="panel-container" [class.collapsed]="isCollapsed">
+  <div class="panel-header" *ngIf="title || collapsible">
+    <h2 *ngIf="!isCollapsed">{{ title }}</h2>
+    <div class="spacer" style="flex: 1;"></div>
+    <button *ngIf="collapsible" class="collapse-btn" (click)="toggleCollapse.emit()" title="Toggle Panel">
+      {{ isCollapsed ? '»' : '«' }}
+    </button>
+  </div>
+  <div class="panel-content" *ngIf="!isCollapsed">
+    <ng-content></ng-content>
+  </div>
+</div>
