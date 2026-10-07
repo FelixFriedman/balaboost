@@ -1,0 +1,16 @@
+<div class="autotrade-logs-section">
+  <div class="logs-header">
+    <span class="logs-title">📋 Live Engine Activity Feed</span>
+    <span class="logs-count">{{ logs?.length || 0 }} events</span>
+  </div>
+  <div class="logs-terminal">
+    <div class="log-row" *ngFor="let log of logs" [class]="log.level">
+      <span class="log-time">{{ log.timeFormatted }}</span>
+      <span class="log-badge" [class]="log.level">{{ log.level | uppercase }}</span>
+      <span class="log-msg">{{ log.message }}</span>
+    </div>
+    <div class="log-empty" *ngIf="!logs || logs.length === 0">
+      Engine is idle. Awaiting next 30-second scan cycle...
+    </div>
+  </div>
+</div>

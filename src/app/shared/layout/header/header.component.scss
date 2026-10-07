@@ -3,18 +3,55 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  
+
   h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
     color: var(--color-text-primary);
   }
 }
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: var(--spacing-md);
-  
+
+  .env-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--color-success);
+    transition: all 0.3s ease;
+
+    &.env-prod {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: var(--color-danger);
+
+      .env-dot {
+        background: var(--color-danger);
+        box-shadow: 0 0 8px var(--color-danger);
+      }
+    }
+  }
+
+  .env-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+    box-shadow: 0 0 8px var(--color-success);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
   .btn {
     display: flex;
     align-items: center;
@@ -22,19 +59,62 @@
     padding: var(--spacing-sm) var(--spacing-lg);
     border-radius: var(--radius-sm);
     font-weight: 600;
+    font-size: 0.8rem;
     font-family: inherit;
     cursor: pointer;
     border: none;
     transition: all 0.2s ease;
-    
+
+    &.btn-env {
+      background: var(--color-bg-surface);
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border-strong);
+
+      &:hover {
+        background: var(--color-bg-surface-glass-hover);
+        color: var(--color-text-primary);
+      }
+    }
+
+    &.btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--color-danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+
+      &:hover {
+        background: rgba(239, 68, 68, 0.25);
+      }
+    }
+
     &.btn-primary {
       background: var(--color-brand-primary);
       color: white;
-      
+
       &:hover {
         background: var(--color-info);
         box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
       }
     }
   }
+}
+
+.prod-banner {
+  background: linear-gradient(90deg, var(--color-danger), #b91c1c);
+  color: white;
+  text-align: center;
+  font-weight: 700;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  animation: banner-pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes banner-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
 }

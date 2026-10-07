@@ -1,8 +1,5 @@
-import { Component, HostListener, OnInit } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
-import { PanelComponent } from '../shared/components';
-import { CommonModule } from '@angular/common';
 import { TradierService } from '../core/services';
 
 @Component({
@@ -10,9 +7,11 @@ import { TradierService } from '../core/services';
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
     standalone: true,
-    imports: [CommonModule, TranslateModule]
+    imports: [TranslateModule]
 })
 export class HomeComponent implements OnInit {
+  private tradierService = inject(TradierService);
+
   leftWidth = 250;
   rightWidth = 300;
   dragging: 'left' | 'right' | null = null;
@@ -23,9 +22,11 @@ export class HomeComponent implements OnInit {
   quoteData: any = null;
   marketTags: string[] = [];
 
-  constructor(private tradierService: TradierService) {}
+  ngOnInit(): void {
+    void this.initData();
+  }
 
-  async ngOnInit(): Promise<void> {
+  private async initData(): Promise<void> {
     console.log('HomeComponent INIT');
     try {
       this.quoteData = await this.tradierService.getQuote('SPX,BPS,BCS');

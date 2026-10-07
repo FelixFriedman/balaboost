@@ -27,6 +27,18 @@ This application includes a robust, automated trading algorithm designed to read
 
 ---
 
+# Options Pricing Mechanics
+
+Once the algorithm evaluates the market and generates tags, the `OptionsPricingEngine` handles translating those signals into limit orders.
+
+| Mechanic | Definition | How the Bot Uses It |
+|----------|------------|---------------------|
+| **Delta** | The mathematical probability that an option will expire "In the Money" (ITM). | Used for dynamic strike selection. Instead of picking fixed dollar amounts away from the stock price, the bot selects Short Legs at ~15 Delta (85% probability of winning) and Long Legs at ~10 Delta, automatically adjusting to live market volatility. |
+| **Mid Price** | The exact middle value between the Bid (buyers) and Ask (sellers). | Used to establish the true "fair value" of an options spread before deciding how aggressive the limit order should be. |
+| **Limit Walking** | Adjusting limit orders based on conviction. | The bot applies discounts (e.g., 5%) to the Mid Price during strong trends to guarantee fills, or demands premium (e.g., +10%) during extreme overbought/oversold states. |
+
+---
+
 # Introduction
 
 Bootstrap and package your project with Angular 21 and Electron 41 (Typescript + SASS + Hot Reload) for creating Desktop applications.

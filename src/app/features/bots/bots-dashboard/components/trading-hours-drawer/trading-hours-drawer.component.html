@@ -1,0 +1,84 @@
+<div class="schedule-drawer">
+  <div class="drawer-inner">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <h4>⏰ Trading Window Configuration (Eastern Time)</h4>
+        <p>Restrict algorithmic executions to peak liquidity hours to avoid morning whipsaws and closing pin risk.</p>
+      </div>
+      <div class="drawer-toggle">
+        <label class="switch-label">
+          <input type="checkbox" [(ngModel)]="localConfig.enabled" (change)="save()" />
+          <span>Enforce Window</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="drawer-body">
+      <div class="time-inputs-row">
+        <div class="time-field" [class.disabled]="!localConfig.enabled">
+          <label for="startTime">Window Start (ET):</label>
+          <input 
+            id="startTime" 
+            type="time" 
+            [(ngModel)]="localConfig.startTime" 
+            (change)="save()" 
+            [disabled]="!localConfig.enabled" 
+          />
+          <span class="hint">10:00 AM avoids opening bell volatility</span>
+        </div>
+
+        <div class="time-field" [class.disabled]="!localConfig.enabled">
+          <label for="endTime">Window End (ET):</label>
+          <input 
+            id="endTime" 
+            type="time" 
+            [(ngModel)]="localConfig.endTime" 
+            (change)="save()" 
+            [disabled]="!localConfig.enabled" 
+          />
+          <span class="hint">3:00 PM avoids end-of-day pin risk</span>
+        </div>
+
+        <div class="time-field bypass-field">
+          <label>Sandbox Testing Bypass:</label>
+          <label class="checkbox-container">
+            <input type="checkbox" [(ngModel)]="localConfig.allowOutsideHoursPaper" (change)="save()" />
+            <span>Allow paper trades outside window</span>
+          </label>
+          <span class="hint">Enable to test orders 24/7 in Sandbox</span>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="presets-row">
+        <span class="presets-title">Quick Presets:</span>
+        <div class="preset-chips">
+          <button 
+            type="button" 
+            class="preset-chip" 
+            [class.active]="localConfig.startTime === '10:00' && localConfig.endTime === '15:00'" 
+            (click)="applyPreset('conservative')"
+          >
+            🎯 10:00 AM – 3:00 PM (Recommended)
+          </button>
+          <button 
+            type="button" 
+            class="preset-chip" 
+            [class.active]="localConfig.startTime === '09:30' && localConfig.endTime === '16:00'" 
+            (click)="applyPreset('full')"
+          >
+            🔔 9:30 AM – 4:00 PM (Full Session)
+          </button>
+          <button 
+            type="button" 
+            class="preset-chip" 
+            [class.active]="localConfig.startTime === '10:30' && localConfig.endTime === '14:30'" 
+            (click)="applyPreset('midday')"
+          >
+            ☀️ 10:30 AM – 2:30 PM (Midday Peak)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

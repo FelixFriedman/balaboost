@@ -1,18 +1,14 @@
-import {app, BrowserWindow, ipcMain, screen} from 'electron';
+import { app, BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { TradierService } from './tradier-service';
-import { AppEnvironment } from './environment';
-import { IndicatorsService } from './indicators-service';
-import { MarketTagger } from './market-tagger';
+import { registerIpcHandlers } from './ipc/ipc-router';
 
 let win: BrowserWindow | null = null;
 const args = process.argv.slice(1),
   serve = args.some(val => val === '--serve');
 
-const tradierService = new TradierService();
-const indicatorsService = new IndicatorsService(tradierService);
-const marketTagger = new MarketTagger();
+// Register all IPC handlers before the app is ready
+registerIpcHandlers();
 
 function createWindow(): BrowserWindow {
 
@@ -70,28 +66,6 @@ function createWindow(): BrowserWindow {
 }
 
 try {
-  ipcMain.handle('app:get-version', () => app.getVersion());
-
-  // Tradier IPC Handlers
-  ipcMain.handle('tradier:getEnvironment', () => tradierService.getEnvironment());
-  ipcMain.handle('tradier:setEnvironment', (event, env: AppEnvironment) => {
-    tradierService.setEnvironment(env);
-    return tradierService.getEnvironment();
-  });
-  ipcMain.handle('tradier:getQuote', async (event, symbol: string) => {
-    return await tradierService.getQuote(symbol);
-  });
-  ipcMain.handle('tradier:getMarketTags', async (event, symbol: string) => {
-    try {
-      const indicators = await indicatorsService.getIndicators(symbol);
-      const tags = marketTagger.evaluate(indicators);
-      return tags;
-    } catch (e: any) {
-      console.error('Error getting tags:', e);
-      throw e;
-    }
-  });
-
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.

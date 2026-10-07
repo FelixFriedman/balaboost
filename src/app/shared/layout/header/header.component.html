@@ -1,11 +1,22 @@
 <div class="header-inner">
   <div class="header-title">
-    <h2>Bots & Automations</h2>
+    <h2>Balaboost</h2>
   </div>
-  
+
   <div class="header-actions">
-    <button class="btn btn-primary">
-      <span class="icon">+</span> New Bot
+    <div class="env-indicator" [class.env-prod]="appState.environment() === 'prod'">
+      <span class="env-dot"></span>
+      <span class="env-label">{{ appState.environment() | uppercase }}</span>
+    </div>
+    <button
+      class="btn btn-env"
+      (click)="appState.toggleEnvironment()"
+      [class.btn-danger]="appState.environment() === 'prod'">
+      Switch to {{ appState.environment() === 'sandbox' ? 'PROD' : 'SANDBOX' }}
     </button>
   </div>
+</div>
+
+<div class="prod-banner" *ngIf="appState.environment() === 'prod'">
+  ⚠️ CAUTION: LIVE PRODUCTION TRADING IS ACTIVE ⚠️
 </div>

@@ -1,0 +1,163 @@
+<div class="trade-panel" *ngIf="isLoading || tradePreview || errorMessage">
+  <div class="trade-panel-header">
+    <div class="panel-title">
+      <h3>📊 Trade Recommendation</h3>
+      <span class="sandbox-tag">Tradier Paper Trading</span>
+    </div>
+    <button class="refresh-btn" (click)="refreshRequested.emit()" [disabled]="isLoading">
+      {{ isLoading ? 'Analyzing...' : 'Refresh Analysis' }}
+    </button>
+  </div>
+
+  <div class="trade-loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <span>Analyzing market conditions and pricing options...</span>
+  </div>
+
+  <div class="trade-error" *ngIf="errorMessage">
+    <span class="error-icon">⚠️</span> {{ errorMessage }}
+  </div>
+
+  <div class="trade-result" *ngIf="tradePreview && !isLoading">
+    <!-- Halt State -->
+    <div class="trade-halt" *ngIf="tradePreview.action === 'Halt'">
+      <span class="halt-icon">⏸️</span>
+      <div class="halt-info">
+        <strong>No Trade Recommended</strong>
+        <p>{{ tradePreview.reason }}</p>
+      </div>
+    </div>
+
+    <!-- Active Trade Recommendation -->
+    <div class="trade-recommendation" *ngIf="tradePreview.action === 'Trade'">
+      <div class="strategy-badge" [class.bullish]="tradePreview.strategy === 'Bull Put Spread'" [class.bearish]="tradePreview.strategy === 'Bear Call Spread'">
+        {{ tradePreview.strategy }}
+      </div>
+
+      <div class="trade-details">
+        <div class="detail-row">
+          <span class="label">Underlying</span>
+          <span class="value">{{ tradePreview.symbol || 'SPX' }} @ ${{ tradePreview.underlyingPrice | number:'1.2-2' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Expiration</span>
+          <span class="value">{{ tradePreview.expiration }}</span>
+        </div>
+        <div class="detail-row" *ngIf="tradePreview.shortLeg">
+          <span class="label">Short Leg (Sell)</span>
+          <span class="value">
+            ${{ tradePreview.shortLeg.strike | number }} {{ tradePreview.strategy?.includes('Put') ? 'Put' : 'Call' }}
+            <span class="delta-badge" *ngIf="tradePreview.shortLeg.delta">({{ (tradePreview.shortLeg.delta * 100) | number:'1.0-0' }}Δ)</span>
+          </span>
+        </div>
+        <div class="detail-row" *ngIf="tradePreview.longLeg">
+          <span class="label">Long Leg (Buy)</span>
+          <span class="value">
+            ${{ tradePreview.longLeg.strike | number }} {{ tradePreview.strategy?.includes('Put') ? 'Put' : 'Call' }}
+            <span class="delta-badge" *ngIf="tradePreview.longLeg.delta">({{ (tradePreview.longLeg.delta * 100) | number:'1.0-0' }}Δ)</span>
+            <span class="cap-badge" *ngIf="tradePreview.capApplied" title="Protected by Hybrid Max Width Cap">🛡️ {{ tradePreview.spreadWidth }}pt Cap</span>
+          </span>
+        </div>
+        <div class="detail-row highlight">
+          <span class="label">Net Credit (Mid)</span>
+          <span class="value">${{ tradePreview.netCreditMid }}</span>
+        </div>
+        <div class="detail-row highlight primary">
+          <span class="label">Recommended Limit</span>
+          <span class="value">${{ tradePreview.recommendedLimitPrice }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Aggressiveness</span>
+          <span class="value">{{ tradePreview.aggressiveness }}</span>
+        </div>
+      </div>
+
+      <div class="tags-used" *ngIf="tradePreview.tagsUsed && tradePreview.tagsUsed.length > 0">
+        <span class="mini-tag" *ngFor="let tag of tradePreview.tagsUsed">{{ tag }}</span>
+      </div>
+
+      <!-- Paper Trading Execution Box -->
+      <div class="paper-execution-box">
+        <div class="order-controls">
+          <div class="quantity-input-group">
+            <label for="orderQty">Contracts:</label>
+            <input 
+              id="orderQty" 
+              type="number" 
+              [(ngModel)]="orderQuantity" 
+              min="1" 
+              max="20" 
+              [disabled]="isSubmittingOrder"
+            />
+          </div>
+
+          <!-- Financial Breakdown Grid -->
+          <div class="order-estimates-grid">
+            <div class="estimate-card">
+              <span class="est-label">Total Premium (Max Profit)</span>
+              <span class="est-val credit">{{ totalPremiumDollars | currency:'USD':'symbol':'1.2-2' }}</span>
+              <span class="est-sub">If expires worthless</span>
+            </div>
+
+            <div class="estimate-card highlight-target">
+              <span class="est-label">🎯 Target Profit ({{ targetProfitPercentage }}%)</span>
+              <span class="est-val profit-green">{{ expectedProfitDollars | currency:'USD':'symbol':'1.2-2' }}</span>
+              <span class="est-sub">Bot exit target</span>
+            </div>
+
+            <div class="estimate-card">
+              <span class="est-label">Collateral Held (Max Risk)</span>
+              <span class="est-val collateral">{{ collateralHeldDollars | currency:'USD':'symbol':'1.2-2' }}</span>
+              <span class="est-sub">{{ spreadWidth }}pt width - premium</span>
+            </div>
+
+            <div class="estimate-card">
+              <span class="est-label">Target Return on Capital</span>
+              <span class="est-val roc">{{ targetReturnOnCapitalPct | number:'1.1-2' }}%</span>
+              <span class="est-sub">Max ROC: {{ maxReturnOnCapitalPct | number:'1.1-2' }}%</span>
+            </div>
+          </div>
+
+          <button 
+            class="execute-order-btn" 
+            (click)="submitOrder()" 
+            [disabled]="isSubmittingOrder || orderQuantity < 1 || (hoursStatus && !hoursStatus.canExecuteTrade)"
+            [class.window-paused]="hoursStatus && !hoursStatus.canExecuteTrade"
+          >
+            <span class="btn-spinner" *ngIf="isSubmittingOrder"></span>
+            <span *ngIf="!isSubmittingOrder">
+              <ng-container *ngIf="!hoursStatus || hoursStatus.canExecuteTrade">
+                🚀 {{ hoursConfig?.allowOutsideHoursPaper && !hoursStatus?.isWithinWindow ? 'Submit Paper Order (Bypass Active)' : 'Submit Paper Order' }}
+              </ng-container>
+              <ng-container *ngIf="hoursStatus && !hoursStatus.canExecuteTrade">
+                ⏳ Trading Paused ({{ hoursConfig?.startTime }} – {{ hoursConfig?.endTime }} ET)
+              </ng-container>
+            </span>
+          </button>
+        </div>
+
+        <!-- Window Paused Notice -->
+        <div class="window-notice paused" *ngIf="hoursStatus && !hoursStatus.canExecuteTrade">
+          <span class="notice-icon">⏳</span>
+          <div class="notice-content">
+            <span><strong>Trading Window Paused:</strong> {{ hoursStatus.reason }}.</span>
+            <button type="button" class="inline-bypass-btn" (click)="setBypass(true)">
+              ⚡ Allow Paper Order Anyway (Sandbox Bypass)
+            </button>
+          </div>
+        </div>
+
+        <!-- Window Bypass Active Notice -->
+        <div class="window-notice bypass" *ngIf="hoursStatus && !hoursStatus.isWithinWindow && hoursConfig?.allowOutsideHoursPaper">
+          <span class="notice-icon">⚡</span>
+          <div class="notice-content">
+            <span><strong>Sandbox Bypass Active:</strong> Trading permitted outside standard {{ hoursConfig?.startTime }} – {{ hoursConfig?.endTime }} ET hours.</span>
+            <button type="button" class="inline-reenable-btn" (click)="setBypass(false)">
+              🔒 Re-enable Window Restriction
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

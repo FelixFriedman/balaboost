@@ -1,39 +1,40 @@
-import { MarketTagger } from './market-tagger';
-import { IndicatorsService, OHLCV, CalculatedIndicators } from './indicators-service';
+import { MarketTagger } from '../analysis/market-tagger';
+import { IndicatorsService, OHLCV, CalculatedIndicators } from '../analysis/indicators-service';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env' });
 
 class MockTradierService {
   getEnvironment() { return 'sandbox'; }
+  async getQuote(_symbol: string) { return {}; }
+  async getExpirations(_symbol: string) { return { expirations: { date: [] } }; }
+  async getOptionsChain(_symbol: string, _expiration: string) { return { options: { option: [] } }; }
+  async getTimesales(symbol: string, interval: string, _start: string, _end: string): Promise<OHLCV[]> {
+    const baseUrl = 'https://sandbox.tradier.com/v1';
+    // 10 days before Friday to ensure 100+ 15-min bars
+    const start = '2026-06-23 00:00'; 
+    const end = '2026-07-03 23:59'; // Last Friday
+    const url = `${baseUrl}/markets/timesales?symbol=${symbol}&interval=${interval}&start=${start}&end=${end}`;
+    console.log('Fetching:', url);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${process.env.TRADIER_SANDBOX_TOKEN}`,
+        'Accept': 'application/json'
+      }
+    });
+    const data = await response.json();
+    return data?.series?.data || [];
+  }
 }
 
 async function run() {
   console.log('Testing Market Tagger Algorithm for a significant drop...');
-  const tradier = new MockTradierService() as any;
-  const indicatorsService = new IndicatorsService(tradier);
+  const mockBroker = new MockTradierService() as any;
+  const indicatorsService = new IndicatorsService(mockBroker);
   const tagger = new MarketTagger();
 
   try {
     const symbol = 'SPX';
-    
-    const originalFetchBars = (indicatorsService as any).fetchBars.bind(indicatorsService);
-    (indicatorsService as any).fetchBars = async (sym: string, interval: string) => {
-      const baseUrl = 'https://sandbox.tradier.com/v1';
-      // 10 days before Friday to ensure 100+ 15-min bars
-      const start = '2026-06-23 00:00'; 
-      const end = '2026-07-03 23:59'; // Last Friday
-      const url = `${baseUrl}/markets/timesales?symbol=${sym}&interval=${interval}&start=${start}&end=${end}`;
-      console.log('Fetching:', url);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${process.env.TRADIER_SANDBOX_TOKEN}`,
-          'Accept': 'application/json'
-        }
-      });
-      const data = await response.json();
-      return data?.series?.data || [];
-    };
 
     console.log(`Fetching 15min indicators for ${symbol} ending on 2026-07-03...`);
     const indicators = await indicatorsService.getIndicators(symbol, '15min');

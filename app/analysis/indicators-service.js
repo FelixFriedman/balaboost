@@ -11,9 +11,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IndicatorsService = void 0;
 const technicalindicators_1 = require("technicalindicators");
+/**
+ * Fetches OHLCV market data via the broker interface and computes
+ * technical indicators (EMA, MACD, RSI, CCI, Stochastic, ADX).
+ *
+ * Key refactor: now depends on IBrokerMarketData.getTimesales() instead of
+ * duplicating the Tradier HTTP call and token access internally.
+ */
 class IndicatorsService {
-    constructor(tradierService) {
-        this.tradierService = tradierService;
+    constructor(broker) {
+        this.broker = broker;
         this.cache = new Map();
         this.CACHE_DURATION_MS = 60 * 1000; // 1 minute cache
     }
@@ -35,33 +42,13 @@ class IndicatorsService {
     }
     fetchBars(symbol, interval) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
-            const baseUrl = this.tradierService.getEnvironment() === 'sandbox'
-                ? 'https://sandbox.tradier.com/v1'
-                : 'https://api.tradier.com/v1';
-            // We fetch timesales for intraday. Note: for sandbox, timesales might be limited. 
-            // We add start/end dates to get enough data. Let's get the last 7 days to be safe.
+            // Build date range: 14 days back to ensure enough 15m bars
             const end = new Date();
             const start = new Date();
-            start.setDate(end.getDate() - 14); // 14 days back to ensure enough 15m bars
-            // Format: YYYY-MM-DD HH:MM
+            start.setDate(end.getDate() - 14);
             const formatDate = (d) => d.toISOString().replace('T', ' ').substring(0, 16);
-            const url = `${baseUrl}/markets/timesales?symbol=${symbol}&interval=${interval}&start=${formatDate(start)}&end=${formatDate(end)}`;
-            console.log(`[IndicatorsService] Fetching ${interval} market data for ${symbol} from Tradier...`);
-            const response = yield fetch(url, {
-                method: 'GET',
-                headers: {
-                    // We need to grab the token from tradierService. Since getToken is private, we will just use process.env
-                    'Authorization': `Bearer ${this.tradierService.getEnvironment() === 'sandbox' ? process.env.TRADIER_SANDBOX_TOKEN : process.env.TRADIER_PROD_TOKEN}`,
-                    'Accept': 'application/json'
-                }
-            });
-            if (!response.ok) {
-                const errorBody = yield response.text();
-                throw new Error(`Tradier API Error (${response.status}): ${errorBody}`);
-            }
-            const data = yield response.json();
-            return ((_a = data === null || data === void 0 ? void 0 : data.series) === null || _a === void 0 ? void 0 : _a.data) || [];
+            console.log(`[IndicatorsService] Fetching ${interval} market data for ${symbol}...`);
+            return this.broker.getTimesales(symbol, interval, formatDate(start), formatDate(end));
         });
     }
     calculateIndicators(bars) {
@@ -74,7 +61,6 @@ class IndicatorsService {
         const ema21 = technicalindicators_1.EMA.calculate({ period: 21, values: closePrices });
         const ema100 = technicalindicators_1.EMA.calculate({ period: 100, values: closePrices });
         // STOCH (5, 3, 3, EMA)
-        // technicalindicators stoch defaults to SMA. To use EMA, we might need a custom approach or just use the default SMA smoothing for now.
         const stoch = technicalindicators_1.Stochastic.calculate({
             high: highPrices,
             low: lowPrices,

@@ -1,0 +1,179 @@
+<div class="orders-panel">
+  <div class="orders-panel-header">
+    <div class="panel-title">
+      <h3>📋 Orders & Working Positions</h3>
+      <span class="count-badge" *ngIf="orders.length > 0">{{ orders.length }}</span>
+    </div>
+    <div class="orders-header-actions">
+      <div class="filter-tabs">
+        <button class="filter-tab" [class.active]="activeFilter === 'all'" (click)="selectFilter('all')">All</button>
+        <button class="filter-tab" [class.active]="activeFilter === 'pending'" (click)="selectFilter('pending')">Pending</button>
+        <button class="filter-tab" [class.active]="activeFilter === 'filled'" (click)="selectFilter('filled')">Filled / Positions</button>
+        <button class="filter-tab" [class.active]="activeFilter === 'canceled'" (click)="selectFilter('canceled')">Canceled / Rejected</button>
+      </div>
+
+      <label class="filter-checkbox" title="Hide canceled and rejected orders from active view">
+        <input 
+          type="checkbox" 
+          [ngModel]="hideCanceledAndRejected" 
+          (ngModelChange)="toggleHideCanceled($event)" 
+        />
+        <span>Hide Canceled & Rejected</span>
+        <span class="hidden-pill" *ngIf="hiddenOrdersCount > 0">{{ hiddenOrdersCount }} hidden</span>
+      </label>
+
+      <button 
+        class="restore-btn" 
+        *ngIf="dismissedOrderIds.size > 0" 
+        (click)="allDismissedCleared.emit()" 
+        title="Restore all dismissed orders"
+      >
+        ↺ Restore Dismissed ({{ dismissedOrderIds.size }})
+      </button>
+
+      <button class="refresh-btn" (click)="refreshRequested.emit()" [disabled]="isLoading">
+        {{ isLoading ? 'Refreshing...' : '🔄 Refresh Orders' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Cancel toast notification -->
+  <div class="order-alert success" *ngIf="cancelMessage">
+    <span class="alert-icon">ℹ️</span>
+    <div class="alert-content">
+      <p>{{ cancelMessage }}</p>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div class="orders-loading" *ngIf="isLoading && orders.length === 0">
+    <div class="spinner"></div>
+    <span>Loading orders from Tradier Sandbox...</span>
+  </div>
+
+  <!-- Empty state -->
+  <div class="orders-empty" *ngIf="!isLoading && filteredOrders.length === 0">
+    <span class="empty-icon">📭</span>
+    <p>No {{ activeFilter !== 'all' ? activeFilter : '' }} orders found{{ hideCanceledAndRejected ? ' (canceled and rejected orders are currently hidden)' : '' }}.</p>
+    <button class="unhide-btn" *ngIf="hideCanceledAndRejected && hiddenOrdersCount > 0" (click)="toggleHideCanceled(false)">
+      Show {{ hiddenOrdersCount }} Hidden Order(s)
+    </button>
+  </div>
+
+  <!-- Orders list cards -->
+  <div class="orders-list" *ngIf="filteredOrders.length > 0">
+    <div 
+      class="order-card" 
+      *ngFor="let order of filteredOrders" 
+      [class.pending]="order.status === 'pending'" 
+      [class.rejected]="order.status === 'rejected'"
+    >
+      <div class="order-card-header">
+        <div class="order-card-left">
+          <span class="order-id">#{{ order.id }}</span>
+          <span class="order-symbol">{{ order.symbol }}</span>
+          <span class="order-strategy">{{ order.strategy || order.class | uppercase }}</span>
+        </div>
+        <div class="order-card-right">
+          <span class="status-badge" [class]="order.status">{{ order.status === 'filled' ? 'FILLED / POSITION' : (order.status | uppercase) }}</span>
+        </div>
+      </div>
+
+      <div class="order-card-body">
+        <div class="order-meta-item">
+          <span class="meta-label">Type:</span>
+          <span class="meta-val">{{ order.type | uppercase }}</span>
+        </div>
+        <div class="order-meta-item">
+          <span class="meta-label">Limit Price:</span>
+          <span class="meta-val">${{ order.price | number:'1.2-2' }}</span>
+        </div>
+        <div class="order-meta-item">
+          <span class="meta-label">Quantity:</span>
+          <span class="meta-val" *ngIf="order.class === 'multileg' && order.leg && order.leg.length > 0">
+            <strong>{{ getSpreadCount(order) }} spread(s)</strong>
+            <span class="total-legs-hint">({{ order.quantity }} total contracts)</span>
+          </span>
+          <span class="meta-val" *ngIf="order.class !== 'multileg' || !order.leg || order.leg.length === 0">
+            {{ order.quantity }} contract(s)
+          </span>
+        </div>
+        <div class="order-meta-item">
+          <span class="meta-label">Duration:</span>
+          <span class="meta-val">{{ order.duration | uppercase }}</span>
+        </div>
+        <div class="order-meta-item">
+          <span class="meta-label">Created:</span>
+          <span class="meta-val">{{ order.create_date | date:'short' }}</span>
+        </div>
+
+        <!-- Financial Breakdown for Credit Spreads -->
+        <ng-container *ngIf="order.class === 'multileg' && order.leg && order.leg.length === 2 && getOrderSpreadWidth(order) > 0">
+          <div class="order-meta-item">
+            <span class="meta-label">Total Credit:</span>
+            <span class="meta-val text-credit">${{ getOrderTotalCredit(order) | number:'1.2-2' }}</span>
+          </div>
+          <div class="order-meta-item">
+            <span class="meta-label">🎯 Target Profit ({{ profitTargetPct }}%):</span>
+            <span class="meta-val text-target">${{ getOrderExpectedProfit(order) | number:'1.2-2' }}</span>
+          </div>
+          <div class="order-meta-item">
+            <span class="meta-label">Collateral Held:</span>
+            <span class="meta-val text-collateral">${{ getOrderMaxCollateral(order) | number:'1.2-2' }}</span>
+          </div>
+          <div class="order-meta-item">
+            <span class="meta-label">Target ROC:</span>
+            <span class="meta-val text-roc">{{ getOrderReturnOnCapital(order) | number:'1.1-2' }}%</span>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Rejection reason if rejected -->
+      <div class="order-rejection-reason" *ngIf="order.status === 'rejected' && order.reason_description">
+        <span class="reason-icon">⚠️</span>
+        <span class="reason-text"><strong>Rejected by Broker:</strong> {{ order.reason_description }}</span>
+      </div>
+
+      <!-- Legs if multileg -->
+      <div class="order-legs" *ngIf="order.leg && order.leg.length > 0">
+        <div class="leg-item" *ngFor="let leg of order.leg">
+          <span class="leg-qty-tag">{{ leg.quantity || getSpreadCount(order) }}x</span>
+          <span class="leg-side" [class.sell]="leg.side?.includes('sell')" [class.buy]="leg.side?.includes('buy')">
+            {{ formatSide(leg.side) }}
+          </span>
+          <span class="leg-formatted">{{ formatOptionSymbol(leg.option_symbol) }}</span>
+          <span class="leg-raw" [title]="'OCC Symbol: ' + leg.option_symbol">({{ leg.option_symbol }})</span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="order-card-footer">
+        <button 
+          class="dismiss-btn" 
+          *ngIf="order.status === 'canceled' || order.status === 'rejected' || order.status === 'expired'"
+          (click)="orderDismissed.emit(order.id)"
+          title="Dismiss this order from your view"
+        >
+          🗑️ Dismiss
+        </button>
+
+        <button 
+          class="cancel-btn" 
+          *ngIf="order.status === 'pending' || order.status === 'open'"
+          (click)="cancelRequested.emit(order.id)" 
+          [disabled]="cancellingOrderId === order.id"
+        >
+          {{ cancellingOrderId === order.id ? 'Canceling...' : '✖ Cancel Order' }}
+        </button>
+
+        <button 
+          class="close-pos-btn" 
+          *ngIf="order.status === 'filled' && order.leg && order.leg.length === 2"
+          (click)="closeModalRequested.emit(order)"
+        >
+          🚪 Close Position
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

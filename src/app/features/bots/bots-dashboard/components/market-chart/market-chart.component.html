@@ -1,0 +1,55 @@
+<div class="chart-wrapper">
+  <!-- Live OHLC Readout Bar (Top overlay above canvas) -->
+  <div class="chart-top-bar">
+    <div class="ohlc-bar-values" *ngIf="displayedBarValues">
+      <span class="ohlc-time-tag">{{ displayedBarValues.time }}</span>
+
+      <div class="ohlc-group">
+        <span class="ohlc-lbl">O:</span>
+        <span class="ohlc-val">{{ displayedBarValues.open | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="ohlc-group">
+        <span class="ohlc-lbl">H:</span>
+        <span class="ohlc-val">{{ displayedBarValues.high | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="ohlc-group">
+        <span class="ohlc-lbl">L:</span>
+        <span class="ohlc-val">{{ displayedBarValues.low | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="ohlc-group">
+        <span class="ohlc-lbl">C:</span>
+        <span class="ohlc-val" [class.up]="displayedBarValues.change >= 0" [class.down]="displayedBarValues.change < 0">
+          {{ displayedBarValues.close | number:'1.2-2' }}
+        </span>
+      </div>
+
+      <div class="ohlc-change-badge" [class.up]="displayedBarValues.change >= 0" [class.down]="displayedBarValues.change < 0">
+        {{ displayedBarValues.change >= 0 ? '+' : '' }}{{ displayedBarValues.change | number:'1.2-2' }}
+        ({{ displayedBarValues.changePct >= 0 ? '+' : '' }}{{ displayedBarValues.changePct | number:'1.2-2' }}%)
+      </div>
+
+      <!-- Live EMA Values -->
+      <div class="ema-tag ema8" *ngIf="displayedBarValues.ema8">
+        <span class="ema-dot"></span>
+        <span class="ohlc-lbl">EMA 8:</span>
+        <span class="ohlc-val">{{ displayedBarValues.ema8 | number:'1.2-2' }}</span>
+      </div>
+
+      <div class="ema-tag ema21" *ngIf="displayedBarValues.ema21">
+        <span class="ema-dot"></span>
+        <span class="ohlc-lbl">EMA 21:</span>
+        <span class="ohlc-val">{{ displayedBarValues.ema21 | number:'1.2-2' }}</span>
+      </div>
+    </div>
+
+    <div class="chart-legend">
+      <div class="legend-item"><span class="color-box ema8"></span> 8 EMA</div>
+      <div class="legend-item"><span class="color-box ema21"></span> 21 EMA</div>
+    </div>
+  </div>
+
+  <div #chartCanvas class="tv-chart"></div>
+</div>

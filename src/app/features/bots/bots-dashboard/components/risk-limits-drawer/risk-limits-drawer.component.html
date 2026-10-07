@@ -1,0 +1,141 @@
+<div class="risk-drawer">
+  <div class="risk-drawer-inner">
+    <div class="risk-drawer-header">
+      <div class="risk-drawer-title">
+        <h4>🛡️ Risk Management & Circuit Breaker Settings</h4>
+        <p>Customize position sizes, loss boundaries, and profit-taking discipline to safeguard capital.</p>
+      </div>
+      <button class="btn-save-risk" (click)="saveLimits()">
+        💾 Save Limits
+      </button>
+    </div>
+
+    <div class="risk-form-grid">
+      <!-- Max Daily Loss -->
+      <div class="risk-field highlight-field">
+        <label for="maxLoss">
+          <span>Max Daily Loss Limit ($):</span>
+          <span class="field-badge breaker">Circuit Breaker</span>
+        </label>
+        <div class="input-with-affix">
+          <span class="affix">$</span>
+          <input id="maxLoss" type="number" min="50" step="50" [(ngModel)]="localConfig.maxDailyLoss" />
+        </div>
+        <span class="risk-hint">Halt all automated trading if intraday loss reaches this threshold</span>
+      </div>
+
+      <!-- Stop Loss Multiplier -->
+      <div class="risk-field">
+        <label for="stopLoss">
+          <span>Stop Loss Multiplier:</span>
+          <span class="field-badge">Credit Multiple</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="stopLoss" type="number" min="1.0" max="5.0" step="0.25" [(ngModel)]="localConfig.stopLossMultiplier" />
+          <span class="affix">x credit</span>
+        </div>
+        <span class="risk-hint">Exit spread if buyback debit reaches {{ localConfig.stopLossMultiplier }}x entry credit</span>
+      </div>
+
+      <!-- Profit Target -->
+      <div class="risk-field">
+        <label for="profitTarget">
+          <span>Profit Target:</span>
+          <span class="field-badge profit">Take Profit</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="profitTarget" type="number" min="10" max="90" step="5" [(ngModel)]="localConfig.profitTargetPct" />
+          <span class="affix">% of credit</span>
+        </div>
+        <span class="risk-hint">Close position when {{ localConfig.profitTargetPct }}% of initial credit is captured</span>
+      </div>
+
+      <!-- Max Concurrent Positions -->
+      <div class="risk-field">
+        <label for="maxPositions">
+          <span>Max Concurrent Spreads:</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="maxPositions" type="number" min="1" max="10" step="1" [(ngModel)]="localConfig.maxConcurrentPositions" />
+          <span class="affix">spreads</span>
+        </div>
+        <span class="risk-hint">Ceiling on concurrent open credit spread positions</span>
+      </div>
+
+      <!-- Contracts per Trade -->
+      <div class="risk-field">
+        <label for="contractsTrade">
+          <span>Contracts Per Trade:</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="contractsTrade" type="number" min="1" max="20" step="1" [(ngModel)]="localConfig.contractsPerTrade" />
+          <span class="affix">contract(s)</span>
+        </div>
+        <span class="risk-hint">Standard position sizing per signal</span>
+      </div>
+
+      <!-- Cooldown Minutes -->
+      <div class="risk-field">
+        <label for="cooldown">
+          <span>Trade Cooldown:</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="cooldown" type="number" min="1" max="120" step="5" [(ngModel)]="localConfig.cooldownMinutes" />
+          <span class="affix">minutes</span>
+        </div>
+        <span class="risk-hint">Minimum rest buffer between subsequent order placements</span>
+      </div>
+
+      <!-- Order Timeout (TTL) -->
+      <div class="risk-field">
+        <label for="orderTimeout">
+          <span>Order Timeout (TTL):</span>
+          <span class="field-badge timeout">Auto-Cancel</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="orderTimeout" type="number" min="1" max="30" step="1" [(ngModel)]="localConfig.orderTimeoutMinutes" />
+          <span class="affix">minutes</span>
+        </div>
+        <span class="risk-hint">Auto-cancel unfilled limit orders after {{ localConfig.orderTimeoutMinutes || 15 }}m to unlock collateral</span>
+      </div>
+
+      <!-- Max Spread Width Cap (Hybrid Strike Selection) -->
+      <div class="risk-field highlight-field">
+        <label for="maxSpreadWidth">
+          <span>Max Spread Width:</span>
+          <span class="field-badge hybrid">Hybrid Delta Cap</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="maxSpreadWidth" type="number" min="5" max="100" step="5" [(ngModel)]="localConfig.maxSpreadWidth" />
+          <span class="affix">points</span>
+        </div>
+        <span class="risk-hint">Targets 10Δ wing, capped at {{ localConfig.maxSpreadWidth || 20 }} pts to prevent margin explosion (${{ ((localConfig.maxSpreadWidth || 20) * 100) | number }} max collateral/spread)</span>
+      </div>
+
+      <!-- Auto-Resume on Launch Toggle -->
+      <div class="risk-field auto-resume-field">
+        <label class="toggle-container">
+          <input type="checkbox" [(ngModel)]="localConfig.autoResumeOnLaunch" />
+          <span class="toggle-label">Auto-Resume Autotrade on App Launch</span>
+        </label>
+        <span class="risk-hint">Automatically resume active scanning when desktop app restarts during trading hours</span>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="risk-presets-row">
+      <span class="preset-label">Risk Presets:</span>
+      <div class="preset-buttons">
+        <button type="button" class="risk-preset-btn" (click)="applyPreset('conservative')">
+          🛡️ Conservative ($300 loss · 5pt Spread · 1 Spread)
+        </button>
+        <button type="button" class="risk-preset-btn" (click)="applyPreset('balanced')">
+          ⚖️ Balanced Default ($500 loss · 10pt Spread · 2 Spreads)
+        </button>
+        <button type="button" class="risk-preset-btn" (click)="applyPreset('aggressive')">
+          🚀 Aggressive ($1000 loss · 25pt Spread · 4 Spreads)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

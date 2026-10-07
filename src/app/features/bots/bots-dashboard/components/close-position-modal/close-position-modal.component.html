@@ -1,0 +1,146 @@
+<div class="modal-backdrop" (click)="cancel()">
+  <div class="close-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">
+        <h3>🚪 Close Spread Position</h3>
+        <span class="modal-order-id">Order #{{ order.id }} ({{ order.symbol }})</span>
+      </div>
+      <button class="modal-close-btn" (click)="cancel()">✖</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="close-explanation">
+        <span class="info-icon">ℹ️</span>
+        <p>
+          Exiting this credit spread will <strong>Buy to Close</strong> the short leg and <strong>Sell to Close</strong> the long protective wing.
+        </p>
+      </div>
+
+      <!-- Reversal Legs Details -->
+      <div class="reversal-legs">
+        <div class="reversal-leg" *ngIf="shortLegToBuy">
+          <span class="reversal-badge buy">Buy to Close</span>
+          <span class="reversal-symbol">{{ formatSymbol(shortLegToBuy.option_symbol) }}</span>
+        </div>
+        <div class="reversal-leg" *ngIf="longLegToSell">
+          <span class="reversal-badge sell">Sell to Close</span>
+          <span class="reversal-symbol">{{ formatSymbol(longLegToSell.option_symbol) }}</span>
+        </div>
+      </div>
+
+      <!-- Closing Order Configuration -->
+      <div class="close-form">
+        <div class="form-row">
+          <label>Order Type:</label>
+          <div class="type-selector">
+            <button 
+              type="button" 
+              class="type-btn" 
+              [class.active]="closeOrderType === 'debit'" 
+              (click)="closeOrderType = 'debit'"
+            >
+              Debit Limit (Recommended)
+            </button>
+            <button 
+              type="button" 
+              class="type-btn" 
+              [class.active]="closeOrderType === 'market'" 
+              (click)="closeOrderType = 'market'"
+            >
+              Market (Instant)
+            </button>
+          </div>
+        </div>
+
+        <!-- Limit Price & Quick Targets -->
+        <div class="form-row" *ngIf="closeOrderType === 'debit'">
+          <label for="closePrice">Max Debit Limit:</label>
+          <div class="price-input-row">
+            <div class="price-input-wrapper">
+              <span class="currency-symbol">$</span>
+              <input 
+                id="closePrice" 
+                type="number" 
+                step="0.05" 
+                min="0.01" 
+                [(ngModel)]="closeLimitPrice" 
+                [disabled]="isSubmittingCloseOrder"
+              />
+            </div>
+
+            <!-- Profit Target Quick Presets -->
+            <div class="profit-presets">
+              <button type="button" class="preset-btn" (click)="setProfitTarget(50)">🎯 50% Profit Target</button>
+              <button type="button" class="preset-btn" (click)="setProfitTarget(75)">🎯 75% Profit Target</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quantity -->
+        <div class="form-row">
+          <label for="closeQty">Spreads to Close:</label>
+          <div class="qty-input-wrapper">
+            <input 
+              id="closeQty" 
+              class="qty-input"
+              type="number" 
+              min="1" 
+              [max]="maxSpreadsAvailable" 
+              [(ngModel)]="spreadQuantityToClose" 
+              [disabled]="isSubmittingCloseOrder"
+            />
+            <span class="qty-max-hint">spread(s) of {{ maxSpreadsAvailable }} open</span>
+          </div>
+        </div>
+
+        <!-- Estimated P&L Preview -->
+        <div class="profit-summary" *ngIf="order.price">
+          <div class="summary-line">
+            <span>Original Entry Credit:</span>
+            <strong>${{ order.price | number:'1.2-2' }}</strong>
+          </div>
+          <div class="summary-line" *ngIf="closeOrderType === 'debit'">
+            <span>Closing Exit Debit:</span>
+            <strong>${{ closeLimitPrice | number:'1.2-2' }}</strong>
+          </div>
+          <div class="summary-line highlight" *ngIf="closeOrderType === 'debit'">
+            <span>Target Profit / Contract:</span>
+            <strong class="profit-green">+${{ ((+order.price - closeLimitPrice) * 100) | number:'1.2-2' }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts inside modal -->
+      <div class="order-alert success" *ngIf="closeSuccessDetails">
+        <span class="alert-icon">✅</span>
+        <div class="alert-content">
+          <strong>Closing Order #{{ closeSuccessDetails.confirmationNumber }} Placed!</strong>
+          <p>{{ closeSuccessDetails.message }}</p>
+        </div>
+      </div>
+
+      <div class="order-alert error" *ngIf="closeErrorMessage">
+        <span class="alert-icon">❌</span>
+        <div class="alert-content">
+          <strong>Closing Failed:</strong>
+          <p>{{ closeErrorMessage }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="modal-cancel-btn" (click)="cancel()" [disabled]="isSubmittingCloseOrder">
+        {{ closeSuccessDetails ? 'Done' : 'Cancel' }}
+      </button>
+      <button 
+        class="modal-submit-btn" 
+        (click)="submitCloseOrder()" 
+        *ngIf="!closeSuccessDetails"
+        [disabled]="isSubmittingCloseOrder || spreadQuantityToClose < 1"
+      >
+        <span class="btn-spinner" *ngIf="isSubmittingCloseOrder"></span>
+        {{ isSubmittingCloseOrder ? 'Submitting to Tradier...' : 'Submit Closing Order' }}
+      </button>
+    </div>
+  </div>
+</div>

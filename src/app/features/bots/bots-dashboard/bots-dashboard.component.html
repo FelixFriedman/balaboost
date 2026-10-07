@@ -1,46 +1,269 @@
-<div class="dashboard-header">
-  <div>
-    <h1>Bots & Automations</h1>
-    <p>Manage your active algorithmic trading bots.</p>
-  </div>
-</div>
-
-<div class="metrics-grid">
-  <!-- Temporary placeholder for Summary Cards -->
-  <div class="glass-card">
-    <div class="label">Total P/L</div>
-    <div class="value positive">+$1,240.50</div>
-  </div>
-  <div class="glass-card">
-    <div class="label">Win Rate</div>
-    <div class="value">68.5%</div>
-  </div>
-  <div class="glass-card">
-    <div class="label">Active Capital</div>
-    <div class="value">$24,500.00</div>
-  </div>
-</div>
-
-<div class="main-content">
-  <div class="glass-card" style="margin-bottom: var(--spacing-lg);">
-    <h3>Market State ($SPX)</h3>
-    <div *ngIf="marketTags && marketTags.length > 0" class="tags-container">
-      <span *ngFor="let tag of marketTags" class="tag-pill">
-        {{ tag }}
-      </span>
+<div class="dashboard-container">
+  <!-- Header Bar -->
+  <div class="header-row">
+    <div>
+      <h2>Options Trading Engine</h2>
+      <p class="subtitle">Automated Multi-Indicator Market Analysis & Options Pricing</p>
     </div>
-    <div *ngIf="!marketTags || marketTags.length === 0" style="color: var(--color-text-tertiary);">
-      Evaluating indicators...
+    <div class="header-right-badges">
+      <div class="env-badge" [class.desktop]="isElectron" [class.web]="!isElectron">
+        <span class="env-dot"></span>
+        <span class="env-text">{{ isElectron ? '🖥️ Desktop Engine Connected' : '🌐 Web Browser Preview' }}</span>
+      </div>
+      <div class="account-badge" *ngIf="accountBalance">
+        <span class="badge-label">Paper Account:</span>
+        <span class="badge-val">Buying Power: {{ accountBalance.optionBuyingPower | currency:'USD':'symbol':'1.0-0' }}</span>
+      </div>
     </div>
   </div>
 
-  <div class="glass-card">
-    <h3>Tradier API Test ($SPX)</h3>
-    <div *ngIf="quoteData">
-      <pre class="code-block">{{ quoteData | json }}</pre>
-    </div>
-    <div *ngIf="!quoteData" style="color: var(--color-text-tertiary);">
-      Fetching quote...
+  <!-- Web Browser Mode Notice Banner -->
+  <div class="web-preview-notice" *ngIf="!isElectron">
+    <span class="notice-icon">💡</span>
+    <div class="notice-text">
+      <strong>Web Browser Preview Mode:</strong> Automated scans, Tradier IPC execution, and background engine services run exclusively inside the <strong>Balaboost Desktop App</strong>. Use the desktop window for live trading and synchronized state.
     </div>
   </div>
+  
+  <!-- Market Regime Tags -->
+  <div class="tags-container" *ngIf="marketTags.length > 0">
+    <div class="tag" *ngFor="let tag of marketTags">{{ tag | uppercase }}</div>
+  </div>
+
+  <!-- Trading Schedule & Live Market Clock Bar -->
+  <div class="schedule-bar">
+    <div class="schedule-clock-section">
+      <div class="live-clock">
+        <span class="clock-icon">🕒</span>
+        <div class="clock-details">
+          <div class="clock-time-line">
+            <span class="clock-time">{{ hoursStatus?.formattedClock || '--:--:--' }}</span>
+            <span class="clock-tz">ET · {{ hoursStatus?.currentEasternDate }}</span>
+          </div>
+          <span class="clock-sub">{{ hoursStatus?.reason }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="schedule-actions-section">
+      <!-- Status Badges -->
+      <div class="schedule-badges">
+        <span class="market-badge" [class]="hoursStatus?.marketStatus">
+          {{ hoursStatus?.marketStatus === 'open' ? '🟢 MARKET OPEN' : '🔴 ' + (hoursStatus?.marketStatus | uppercase) }}
+        </span>
+        <span class="window-badge" [class]="hoursStatus?.windowStatus">
+          {{ hoursStatus?.windowStatus === 'active' ? '⚡ WINDOW ACTIVE' : (hoursStatus?.windowStatus === 'disabled' ? '⚪ FILTER OFF' : '⏳ WINDOW PAUSED') }}
+        </span>
+      </div>
+
+      <button class="configure-hours-btn" [class.active]="showHoursSettings" (click)="toggleHoursSettings()">
+        ⚙️ {{ showHoursSettings ? 'Close Settings' : 'Configure Window' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Expandable Trading Window Drawer Component -->
+  <app-trading-hours-drawer
+    *ngIf="showHoursSettings"
+    [config]="hoursConfig"
+    (saved)="saveTradingHours($event)"
+  ></app-trading-hours-drawer>
+
+  <!-- Autotrade Engine Control Card -->
+  <div class="autotrade-card" [class.running]="autotradeState?.status === 'running'" [class.paused]="autotradeState?.status === 'paused'" [class.circuit-tripped]="autotradeState?.circuitBreakerTripped">
+    <div class="autotrade-header">
+      <div class="autotrade-status-section">
+        <div class="bot-avatar">🤖</div>
+        <div class="bot-meta">
+          <div class="bot-title-line">
+            <h3>Autotrade Engine</h3>
+            <span class="bot-status-pill" [class]="autotradeState?.status || 'stopped'">
+              <span class="pulse-dot" *ngIf="autotradeState?.status === 'running'"></span>
+              {{ (autotradeState?.status || 'stopped') | uppercase }}
+            </span>
+            <span class="symbol-pill">SPX Credit Spreads</span>
+          </div>
+          <p class="bot-subtitle">
+            <ng-container *ngIf="autotradeState?.status === 'running'">
+              Actively evaluating 15m trend signals every {{ autotradeState?.config?.scanIntervalSeconds || 30 }}s · Auto-executing within risk limits
+            </ng-container>
+            <ng-container *ngIf="autotradeState?.status === 'paused'">
+              ⏸️ Engine paused · Automated entries suspended · Existing positions monitored
+            </ng-container>
+            <ng-container *ngIf="!autotradeState || autotradeState.status === 'stopped'">
+              ⚪ Engine idle · Click Start to begin automated algorithmic scanning
+            </ng-container>
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="autotrade-controls">
+        <button 
+          class="btn-start" 
+          *ngIf="!autotradeState || autotradeState.status === 'stopped'"
+          (click)="startAutotrade()" 
+          [disabled]="autotradeLoading || autotradeState?.circuitBreakerTripped"
+        >
+          ▶ Start Autotrade
+        </button>
+
+        <button 
+          class="btn-pause" 
+          *ngIf="autotradeState?.status === 'running'"
+          (click)="pauseAutotrade()" 
+          [disabled]="autotradeLoading"
+        >
+          ⏸️ Pause
+        </button>
+
+        <button 
+          class="btn-resume" 
+          *ngIf="autotradeState?.status === 'paused'"
+          (click)="resumeAutotrade()" 
+          [disabled]="autotradeLoading || autotradeState?.circuitBreakerTripped"
+        >
+          ▶ Resume
+        </button>
+
+        <button 
+          class="btn-stop" 
+          *ngIf="autotradeState && autotradeState.status !== 'stopped'"
+          (click)="stopAutotrade()" 
+          [disabled]="autotradeLoading"
+        >
+          ⏹️ Stop
+        </button>
+
+        <button 
+          class="btn-scan" 
+          (click)="triggerAutotradeScan()" 
+          [disabled]="autotradeLoading"
+          title="Run an immediate algorithmic scan without waiting for timer"
+        >
+          ⚡ Scan Now
+        </button>
+
+        <button 
+          class="btn-risk" 
+          [class.active]="showRiskSettings"
+          (click)="toggleRiskSettings()"
+        >
+          🛡️ {{ showRiskSettings ? 'Close Risk' : 'Risk & Limits' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Circuit Breaker Alert Banner -->
+    <div class="circuit-breaker-banner" *ngIf="autotradeState?.circuitBreakerTripped">
+      <div class="circuit-icon">🚨</div>
+      <div class="circuit-content">
+        <strong>CIRCUIT BREAKER TRIGGERED: Daily Loss Limit Hit</strong>
+        <p>{{ autotradeState?.circuitBreakerReason || 'Maximum daily loss exceeded. Trading paused to protect capital.' }}</p>
+      </div>
+      <button class="btn-reset-circuit" (click)="resetCircuitBreaker()" [disabled]="autotradeLoading">
+        🔓 Reset Circuit Breaker
+      </button>
+    </div>
+
+    <!-- Action feedback toast -->
+    <div class="autotrade-feedback" *ngIf="autotradeActionMessage">
+      <span>ℹ️ {{ autotradeActionMessage }}</span>
+    </div>
+
+    <!-- Risk & Limits Drawer Component -->
+    <app-risk-limits-drawer
+      *ngIf="showRiskSettings"
+      [config]="riskConfig"
+      (saved)="saveRiskLimits($event)"
+    ></app-risk-limits-drawer>
+
+    <!-- Live Risk & Performance Metrics Bar -->
+    <div class="autotrade-metrics-bar">
+      <div class="metric-item">
+        <span class="m-label">Today P&L</span>
+        <span class="m-val" [class.profit]="(autotradeState?.todayRealizedPnL || 0) > 0" [class.loss]="(autotradeState?.todayRealizedPnL || 0) < 0">
+          {{ (autotradeState?.todayRealizedPnL || 0) >= 0 ? '+' : '' }}{{ (autotradeState?.todayRealizedPnL || 0) | currency:'USD':'symbol':'1.2-2' }}
+        </span>
+      </div>
+
+      <div class="metric-item">
+        <span class="m-label">Max Loss Limit</span>
+        <span class="m-val loss-limit">
+          -${{ autotradeState?.config?.maxDailyLoss || riskConfig.maxDailyLoss | number:'1.0-0' }}
+        </span>
+      </div>
+
+      <div class="metric-item">
+        <span class="m-label">Stop / Target</span>
+        <span class="m-val">
+          {{ autotradeState?.config?.stopLossMultiplier || riskConfig.stopLossMultiplier }}x / {{ autotradeState?.config?.profitTargetPct || riskConfig.profitTargetPct }}%
+        </span>
+      </div>
+
+      <div class="metric-item">
+        <span class="m-label">Trades Today</span>
+        <span class="m-val">{{ autotradeState?.tradesExecutedToday || 0 }}</span>
+      </div>
+
+      <div class="metric-item">
+        <span class="m-label">Max Concurrent</span>
+        <span class="m-val">{{ autotradeState?.config?.maxConcurrentPositions || riskConfig.maxConcurrentPositions }}</span>
+      </div>
+
+      <div class="metric-item decision-metric">
+        <span class="m-label">Last Algorithmic Decision</span>
+        <span class="m-val decision-text" [title]="autotradeState?.lastScanDecision || 'Awaiting initial scan'">
+          {{ autotradeState?.lastScanDecision || 'Ready' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Live Decision & Execution Activity Feed Terminal -->
+    <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
+  </div>
+
+  <!-- Market Candlestick Chart Component -->
+  <app-market-chart [indicators]="chartIndicators"></app-market-chart>
+
+  <!-- Trade Recommendation & Paper Execution Ticket Component -->
+  <app-trade-recommendation-card
+    [tradePreview]="tradePreview"
+    [isLoading]="tradePreviewLoading"
+    [errorMessage]="tradePreviewError"
+    [hoursStatus]="hoursStatus"
+    [hoursConfig]="hoursConfig"
+    [targetProfitPercentage]="riskConfig.profitTargetPct || 50"
+    [isSubmittingOrder]="submittingOrder"
+    (refreshRequested)="fetchTradePreview()"
+    (orderSubmitted)="handleOrderSubmitted($event)"
+    (bypassToggled)="handleSandboxBypass($event)"
+  ></app-trade-recommendation-card>
+
+  <!-- Orders & Working Positions Panel Component -->
+  <app-orders-list
+    [orders]="orders"
+    [isLoading]="ordersLoading"
+    [activeFilter]="orderFilter"
+    [hideCanceledAndRejected]="hideCanceledAndRejected"
+    [dismissedOrderIds]="dismissedOrderIds"
+    [cancellingOrderId]="cancelingOrderId"
+    [cancelMessage]="cancelMessage"
+    [profitTargetPct]="riskConfig.profitTargetPct || 50"
+    (filterChanged)="handleFilterChange($event)"
+    (hideCanceledToggled)="handleHideCanceledChange($event)"
+    (orderDismissed)="handleOrderDismissed($event)"
+    (allDismissedCleared)="handleClearDismissed()"
+    (refreshRequested)="fetchOrders()"
+    (cancelRequested)="cancelOrder($event)"
+    (closeModalRequested)="openCloseModal($event)"
+  ></app-orders-list>
+
+  <!-- Close Position Modal Overlay Component -->
+  <app-close-position-modal
+    *ngIf="closingOrder"
+    [order]="closingOrder"
+    (orderPlaced)="handleClosePositionPlaced()"
+    (dismissed)="closeClosingModal()"
+  ></app-close-position-modal>
 </div>

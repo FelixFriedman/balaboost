@@ -16,16 +16,11 @@ export class AppComponent {
   private translate = inject(TranslateService);
 
   constructor() {
-    const electronService = this.electronService;
-
     this.translate.setDefaultLang('en');
     console.log('APP_CONFIG', APP_CONFIG);
 
-    if (electronService.isElectron) {
-      console.log(process.env);
+    if (this.electronService.isElectron) {
       console.log('Run in electron');
-      console.log('Electron ipcRenderer', this.electronService.ipcRenderer);
-      console.log('NodeJS childProcess', this.electronService.childProcess);
       void this.electronService.ipcRenderer.invoke('app:get-version').then(v => console.log('App version:', v));
     } else {
       console.log('Run in browser');

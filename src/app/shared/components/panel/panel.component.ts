@@ -1,10 +1,10 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './panel.component.html',
   styleUrls: ['./panel.component.scss']
 })
