@@ -2,7 +2,7 @@
   <div class="logs-header" (click)="toggleCollapse()">
     <div class="logs-header-left">
       <span class="logs-title">📋 Live Engine Activity Feed</span>
-      <span class="logs-count">{{ logs?.length || 0 }} events</span>
+      <span class="logs-count">{{ (logs ? logs.length : 0) }} events</span>
     </div>
     <button class="logs-toggle-btn" type="button" (click)="$event.stopPropagation(); toggleCollapse()">
       {{ isCollapsed ? '▲ Expand Feed' : '▼ Collapse' }}

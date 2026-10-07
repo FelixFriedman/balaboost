@@ -557,29 +557,33 @@
 }
 
 /* ==========================================================================
-   Middle 2-Column Pro Cockpit Grid (Chart Left vs Order Ticket Right)
+   Full-Width Candlestick Chart & Balanced 50/50 Operations Grid
    ========================================================================== */
 
-.cockpit-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.58fr) minmax(0, 1fr);
-  gap: var(--spacing-md);
-  align-items: stretch;
+.cockpit-chart-section {
+  width: 100%;
   margin-top: var(--spacing-sm);
 }
 
-.cockpit-col-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+.operations-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  align-items: stretch;
+  margin-top: var(--spacing-md);
 }
 
-.cockpit-col-ticket {
+.operations-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
   height: 100%;
+
+  > * {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 /* Bottom Orders & Working Positions Panel */
@@ -590,7 +594,7 @@
 
 /* Responsive Media Queries */
 @media (max-width: 1180px) {
-  .cockpit-grid {
+  .operations-grid {
     grid-template-columns: 1fr;
   }
 }

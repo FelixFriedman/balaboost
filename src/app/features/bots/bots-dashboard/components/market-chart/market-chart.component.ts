@@ -96,7 +96,7 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
 
     this.chartInstance = createChart(container, {
       width: container.clientWidth || 800,
-      height: 400,
+      height: 440,
       layout: {
         background: { color: '#151521' },
         textColor: '#d1d4dc',
@@ -158,7 +158,7 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
         param.point.x < 0 ||
         param.point.x > container.clientWidth ||
         param.point.y < 0 ||
-        param.point.y > 400
+        param.point.y > (container.clientHeight || 440)
       ) {
         this.hoveredBarValues = null;
         return;

@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 /* ===== Trade Recommendation Panel ===== */
 
 .trade-panel {
@@ -9,6 +14,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .trade-panel-header {
@@ -97,6 +103,39 @@
 
   .error-icon {
     margin-right: var(--spacing-sm);
+  }
+}
+
+.trade-idle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px dashed rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+
+  .idle-icon {
+    font-size: 1.6rem;
+    flex-shrink: 0;
+  }
+
+  .idle-info {
+    strong {
+      display: block;
+      color: #93c5fd;
+      font-size: 0.88rem;
+      margin-bottom: 3px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: var(--color-text-secondary);
+    }
   }
 }
 

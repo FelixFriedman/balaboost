@@ -200,16 +200,15 @@
     </div>
   </div>
 
-  <!-- Middle Cockpit Grid: Chart & Activity Feed (Left) vs Trade Recommendation Ticket (Right) -->
-  <div class="cockpit-grid">
-    <!-- Left Column: Candlestick Chart & Activity Terminal -->
-    <div class="cockpit-col-chart">
-      <app-market-chart [indicators]="chartIndicators"></app-market-chart>
-      <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
-    </div>
+  <!-- Full-Width Candlestick Chart Section -->
+  <div class="cockpit-chart-section">
+    <app-market-chart [indicators]="chartIndicators"></app-market-chart>
+  </div>
 
-    <!-- Right Column: Trade Recommendation & Order Execution Ticket -->
-    <div class="cockpit-col-ticket">
+  <!-- Lower Section: Balanced 50/50 Operations Grid -->
+  <div class="operations-grid">
+    <!-- Left Column: Trade Recommendation & Order Execution Ticket -->
+    <div class="operations-col">
       <app-trade-recommendation-card
         [tradePreview]="tradePreview"
         [isLoading]="tradePreviewLoading"
@@ -222,6 +221,11 @@
         (orderSubmitted)="handleOrderSubmitted($event)"
         (bypassToggled)="handleSandboxBypass($event)"
       ></app-trade-recommendation-card>
+    </div>
+
+    <!-- Right Column: Live Engine Activity Feed Terminal -->
+    <div class="operations-col">
+      <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
     </div>
   </div>
 

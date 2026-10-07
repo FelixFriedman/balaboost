@@ -1,70 +1,86 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 .autotrade-logs-section {
-  background: #090a10;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: var(--color-bg-surface, #0b0d17);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-lg, 12px);
   overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 
   .logs-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 6px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.025);
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
     cursor: pointer;
     user-select: none;
     transition: background 0.15s ease;
+    flex-shrink: 0;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .logs-header-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .logs-title {
-      font-size: 0.75rem;
+      font-size: 0.95rem;
       font-weight: 700;
-      color: #94a3b8;
-      letter-spacing: 0.03em;
+      color: var(--color-text-primary, #ffffff);
+      letter-spacing: 0.02em;
     }
 
     .logs-count {
-      font-size: 0.7rem;
-      color: #64748b;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 10px;
     }
 
     .logs-toggle-btn {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 5px;
       color: #94a3b8;
-      font-size: 0.68rem;
+      font-size: 0.72rem;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 4px 10px;
       cursor: pointer;
       transition: all 0.2s ease;
 
       &:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.1);
         color: #ffffff;
-        border-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.25);
       }
     }
   }
 
   .logs-terminal {
-    max-height: 140px;
+    flex: 1;
+    min-height: 380px;
+    max-height: 600px;
     overflow-y: auto;
-    padding: 6px 10px;
+    padding: 12px 16px;
     font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-    font-size: 0.73rem;
+    font-size: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
+    background: #07080f;
 
     &::-webkit-scrollbar {
       width: 6px;
