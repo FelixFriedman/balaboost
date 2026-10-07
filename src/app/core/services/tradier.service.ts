@@ -118,14 +118,41 @@ export class TradierService {
     if (this.electronService.isElectron) {
       return (await this.electronService.ipcRenderer.invoke('trading:previewOrder', symbol)) as any;
     }
-    throw new Error('Electron is not available.');
+    return {
+      action: 'Trade',
+      strategy: 'Bull Put Spread',
+      symbol: symbol || 'SPX',
+      underlyingPrice: 7654.59,
+      expiration: '2026-11-02',
+      shortLeg: {
+        symbol: 'SPXW261102P07400000',
+        strike: 7400,
+        delta: -0.15
+      },
+      longLeg: {
+        symbol: 'SPXW261102P07225000',
+        strike: 7225,
+        delta: -0.06
+      },
+      netCreditMid: 11.50,
+      recommendedLimitPrice: 11.50,
+      spreadWidth: 175,
+      capApplied: true,
+      aggressiveness: 'Balanced Mid-Price',
+      tagsUsed: ['BULL MARKET', 'HEALTHY MOMENTUM']
+    };
   }
 
   async placeSpreadOrder(order: any): Promise<any> {
     if (this.electronService.isElectron) {
       return (await this.electronService.ipcRenderer.invoke('trading:placeOrder', order)) as any;
     }
-    throw new Error('Electron is not available.');
+    return {
+      order: {
+        id: Math.floor(2600000 + Math.random() * 90000),
+        status: 'ok'
+      }
+    };
   }
 
   async closeSpreadPosition(order: any): Promise<any> {

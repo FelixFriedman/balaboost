@@ -1,11 +1,14 @@
 /* ===== Trade Recommendation Panel ===== */
 
 .trade-panel {
-  margin-top: var(--spacing-lg);
+  margin-top: 0;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .trade-panel-header {
@@ -120,6 +123,35 @@
       margin: 0;
       font-size: 0.85rem;
       color: var(--color-text-secondary);
+    }
+  }
+}
+
+.trade-idle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px dashed rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+
+  .idle-icon {
+    font-size: 1.8rem;
+  }
+
+  .idle-info {
+    strong {
+      color: #60a5fa;
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+    p {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--color-text-secondary);
+      line-height: 1.4;
     }
   }
 }

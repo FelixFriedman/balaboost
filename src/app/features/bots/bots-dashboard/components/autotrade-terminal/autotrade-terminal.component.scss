@@ -11,6 +11,19 @@
     background: rgba(255, 255, 255, 0.03);
     padding: 6px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .logs-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .logs-title {
       font-size: 0.75rem;
@@ -22,6 +35,24 @@
     .logs-count {
       font-size: 0.7rem;
       color: #64748b;
+    }
+
+    .logs-toggle-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: #94a3b8;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.2);
+      }
     }
   }
 

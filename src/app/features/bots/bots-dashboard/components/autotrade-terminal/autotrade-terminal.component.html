@@ -1,9 +1,14 @@
 <div class="autotrade-logs-section">
-  <div class="logs-header">
-    <span class="logs-title">📋 Live Engine Activity Feed</span>
-    <span class="logs-count">{{ logs?.length || 0 }} events</span>
+  <div class="logs-header" (click)="toggleCollapse()">
+    <div class="logs-header-left">
+      <span class="logs-title">📋 Live Engine Activity Feed</span>
+      <span class="logs-count">{{ logs?.length || 0 }} events</span>
+    </div>
+    <button class="logs-toggle-btn" type="button" (click)="$event.stopPropagation(); toggleCollapse()">
+      {{ isCollapsed ? '▲ Expand Feed' : '▼ Collapse' }}
+    </button>
   </div>
-  <div class="logs-terminal">
+  <div class="logs-terminal" *ngIf="!isCollapsed">
     <div class="log-row" *ngFor="let log of logs" [class]="log.level">
       <span class="log-time">{{ log.timeFormatted }}</span>
       <span class="log-badge" [class]="log.level">{{ log.level | uppercase }}</span>

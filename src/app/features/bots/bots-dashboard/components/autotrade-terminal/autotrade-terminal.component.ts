@@ -25,4 +25,13 @@ export class AutotradeTerminalComponent {
    * Optional event emitted if the user clears the terminal history.
    */
   @Output() cleared = new EventEmitter<void>();
+
+  /**
+   * Whether the terminal logs container is collapsed.
+   */
+  isCollapsed: boolean = false;
+
+  toggleCollapse(): void {
+    this.isCollapsed = !this.isCollapsed;
+  }
 }

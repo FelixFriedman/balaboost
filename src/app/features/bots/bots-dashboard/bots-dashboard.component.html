@@ -1,104 +1,69 @@
 <div class="dashboard-container">
-  <!-- Header Bar -->
-  <div class="header-row">
-    <div>
-      <h2>Options Trading Engine</h2>
-      <p class="subtitle">Automated Multi-Indicator Market Analysis & Options Pricing</p>
-    </div>
-    <div class="header-right-badges">
-      <div class="env-badge" [class.desktop]="isElectron" [class.web]="!isElectron">
-        <span class="env-dot"></span>
-        <span class="env-text">{{ isElectron ? '🖥️ Desktop Engine Connected' : '🌐 Web Browser Preview' }}</span>
-      </div>
-      <div class="account-badge" *ngIf="accountBalance">
-        <span class="badge-label">Paper Account:</span>
-        <span class="badge-val">Buying Power: {{ accountBalance.optionBuyingPower | currency:'USD':'symbol':'1.0-0' }}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Web Browser Mode Notice Banner -->
-  <div class="web-preview-notice" *ngIf="!isElectron">
-    <span class="notice-icon">💡</span>
-    <div class="notice-text">
-      <strong>Web Browser Preview Mode:</strong> Automated scans, Tradier IPC execution, and background engine services run exclusively inside the <strong>Balaboost Desktop App</strong>. Use the desktop window for live trading and synchronized state.
-    </div>
-  </div>
-  
-  <!-- Market Regime Tags -->
-  <div class="tags-container" *ngIf="marketTags.length > 0">
-    <div class="tag" *ngFor="let tag of marketTags">{{ tag | uppercase }}</div>
-  </div>
-
-  <!-- Trading Schedule & Live Market Clock Bar -->
-  <div class="schedule-bar">
-    <div class="schedule-clock-section">
-      <div class="live-clock">
-        <span class="clock-icon">🕒</span>
-        <div class="clock-details">
-          <div class="clock-time-line">
-            <span class="clock-time">{{ hoursStatus?.formattedClock || '--:--:--' }}</span>
-            <span class="clock-tz">ET · {{ hoursStatus?.currentEasternDate }}</span>
+  <!-- Unified Command Center & HUD -->
+  <div class="command-hud" [class.running]="autotradeState?.status === 'running'" [class.paused]="autotradeState?.status === 'paused'" [class.circuit-tripped]="autotradeState?.circuitBreakerTripped">
+    
+    <!-- Top HUD Row: Identity, Market Status, Clock, Environment & Buying Power -->
+    <div class="hud-top-bar">
+      <div class="hud-identity">
+        <div class="hud-title-row">
+          <span class="hud-bot-avatar">🤖</span>
+          <div class="hud-title-group">
+            <div class="hud-heading-line">
+              <h2>Options Trading Cockpit</h2>
+              <span class="bot-status-pill" [class]="autotradeState?.status || 'stopped'">
+                <span class="pulse-dot" *ngIf="autotradeState?.status === 'running'"></span>
+                {{ (autotradeState?.status || 'stopped') | uppercase }}
+              </span>
+              <span class="symbol-pill">SPX Spreads</span>
+            </div>
+            <p class="hud-sub">Automated Trend Analysis · Adaptive Pricing · Risk Engine</p>
           </div>
-          <span class="clock-sub">{{ hoursStatus?.reason }}</span>
+        </div>
+
+        <!-- Inline Market Regime Tags -->
+        <div class="hud-regime-tags" *ngIf="marketTags.length > 0">
+          <span class="regime-tag" *ngFor="let tag of marketTags">{{ tag | uppercase }}</span>
+        </div>
+      </div>
+
+      <div class="hud-status-cluster">
+        <!-- Live Market Clock & Timezone -->
+        <div class="hud-clock-pill">
+          <span class="clock-icon">🕒</span>
+          <div class="clock-text">
+            <span class="clock-time">{{ hoursStatus?.formattedClock || '--:--:--' }} ET</span>
+            <span class="clock-date">{{ hoursStatus?.currentEasternDate }}</span>
+          </div>
+        </div>
+
+        <!-- Market & Window Badges -->
+        <div class="hud-badges">
+          <span class="market-badge" [class]="hoursStatus?.marketStatus">
+            {{ hoursStatus?.marketStatus === 'open' ? '🟢 OPEN' : '🔴 ' + (hoursStatus?.marketStatus | uppercase) }}
+          </span>
+          <span class="window-badge" [class]="hoursStatus?.windowStatus">
+            {{ hoursStatus?.windowStatus === 'active' ? '⚡ WINDOW ACTIVE' : (hoursStatus?.windowStatus === 'disabled' ? '⚪ FILTER OFF' : '⏳ PAUSED') }}
+          </span>
+        </div>
+
+        <!-- Account / Buying Power -->
+        <div class="account-badge" *ngIf="accountBalance">
+          <span class="badge-label">Buying Power:</span>
+          <span class="badge-val">{{ accountBalance.optionBuyingPower | currency:'USD':'symbol':'1.0-0' }}</span>
+        </div>
+
+        <!-- Environment Badge -->
+        <div class="env-badge" [class.desktop]="isElectron" [class.web]="!isElectron">
+          <span class="env-dot"></span>
+          <span class="env-text">{{ isElectron ? 'Desktop Engine' : 'Web Preview' }}</span>
         </div>
       </div>
     </div>
 
-    <div class="schedule-actions-section">
-      <!-- Status Badges -->
-      <div class="schedule-badges">
-        <span class="market-badge" [class]="hoursStatus?.marketStatus">
-          {{ hoursStatus?.marketStatus === 'open' ? '🟢 MARKET OPEN' : '🔴 ' + (hoursStatus?.marketStatus | uppercase) }}
-        </span>
-        <span class="window-badge" [class]="hoursStatus?.windowStatus">
-          {{ hoursStatus?.windowStatus === 'active' ? '⚡ WINDOW ACTIVE' : (hoursStatus?.windowStatus === 'disabled' ? '⚪ FILTER OFF' : '⏳ WINDOW PAUSED') }}
-        </span>
-      </div>
-
-      <button class="configure-hours-btn" [class.active]="showHoursSettings" (click)="toggleHoursSettings()">
-        ⚙️ {{ showHoursSettings ? 'Close Settings' : 'Configure Window' }}
-      </button>
-    </div>
-  </div>
-
-  <!-- Expandable Trading Window Drawer Component -->
-  <app-trading-hours-drawer
-    *ngIf="showHoursSettings"
-    [config]="hoursConfig"
-    (saved)="saveTradingHours($event)"
-  ></app-trading-hours-drawer>
-
-  <!-- Autotrade Engine Control Card -->
-  <div class="autotrade-card" [class.running]="autotradeState?.status === 'running'" [class.paused]="autotradeState?.status === 'paused'" [class.circuit-tripped]="autotradeState?.circuitBreakerTripped">
-    <div class="autotrade-header">
-      <div class="autotrade-status-section">
-        <div class="bot-avatar">🤖</div>
-        <div class="bot-meta">
-          <div class="bot-title-line">
-            <h3>Autotrade Engine</h3>
-            <span class="bot-status-pill" [class]="autotradeState?.status || 'stopped'">
-              <span class="pulse-dot" *ngIf="autotradeState?.status === 'running'"></span>
-              {{ (autotradeState?.status || 'stopped') | uppercase }}
-            </span>
-            <span class="symbol-pill">SPX Credit Spreads</span>
-          </div>
-          <p class="bot-subtitle">
-            <ng-container *ngIf="autotradeState?.status === 'running'">
-              Actively evaluating 15m trend signals every {{ autotradeState?.config?.scanIntervalSeconds || 30 }}s · Auto-executing within risk limits
-            </ng-container>
-            <ng-container *ngIf="autotradeState?.status === 'paused'">
-              ⏸️ Engine paused · Automated entries suspended · Existing positions monitored
-            </ng-container>
-            <ng-container *ngIf="!autotradeState || autotradeState.status === 'stopped'">
-              ⚪ Engine idle · Click Start to begin automated algorithmic scanning
-            </ng-container>
-          </p>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="autotrade-controls">
+    <!-- Bottom HUD Row: Quick Action Controls & Key Risk/Performance Metrics -->
+    <div class="hud-control-strip">
+      <!-- Quick Engine Actions -->
+      <div class="hud-actions">
         <button 
           class="btn-start" 
           *ngIf="!autotradeState || autotradeState.status === 'stopped'"
@@ -145,12 +110,54 @@
         </button>
 
         <button 
-          class="btn-risk" 
+          class="btn-config" 
           [class.active]="showRiskSettings"
           (click)="toggleRiskSettings()"
         >
           🛡️ {{ showRiskSettings ? 'Close Risk' : 'Risk & Limits' }}
         </button>
+
+        <button 
+          class="btn-config" 
+          [class.active]="showHoursSettings" 
+          (click)="toggleHoursSettings()"
+        >
+          ⚙️ {{ showHoursSettings ? 'Close Hours' : 'Trading Hours' }}
+        </button>
+      </div>
+
+      <!-- Compact Risk & Performance Metrics Strip -->
+      <div class="hud-metrics">
+        <div class="metric-pill">
+          <span class="m-lbl">Today P&L</span>
+          <span class="m-num" [class.profit]="(autotradeState?.todayRealizedPnL || 0) > 0" [class.loss]="(autotradeState?.todayRealizedPnL || 0) < 0">
+            {{ (autotradeState?.todayRealizedPnL || 0) >= 0 ? '+' : '' }}{{ (autotradeState?.todayRealizedPnL || 0) | currency:'USD':'symbol':'1.2-2' }}
+          </span>
+        </div>
+
+        <div class="metric-pill">
+          <span class="m-lbl">Max Loss</span>
+          <span class="m-num loss-limit">
+            -${{ autotradeState?.config?.maxDailyLoss || riskConfig.maxDailyLoss | number:'1.0-0' }}
+          </span>
+        </div>
+
+        <div class="metric-pill">
+          <span class="m-lbl">Stop / Target</span>
+          <span class="m-num">
+            {{ autotradeState?.config?.stopLossMultiplier || riskConfig.stopLossMultiplier }}x / {{ autotradeState?.config?.profitTargetPct || riskConfig.profitTargetPct }}%
+          </span>
+        </div>
+
+        <div class="metric-pill">
+          <span class="m-lbl">Trades</span>
+          <span class="m-num">{{ autotradeState?.tradesExecutedToday || 0 }} / {{ autotradeState?.config?.maxConcurrentPositions || riskConfig.maxConcurrentPositions }}</span>
+        </div>
+
+        <div class="metric-pill decision-pill" [title]="autotradeState?.lastScanDecision || 'Ready'">
+          <span class="m-lbl">Decision</span>
+          <span class="m-decision">{{ autotradeState?.lastScanDecision || 'Ready' }}</span>
+        </div>
       </div>
     </div>
 
@@ -171,93 +178,73 @@
       <span>ℹ️ {{ autotradeActionMessage }}</span>
     </div>
 
-    <!-- Risk & Limits Drawer Component -->
+    <!-- Drawers nested cleanly in the HUD -->
     <app-risk-limits-drawer
       *ngIf="showRiskSettings"
       [config]="riskConfig"
       (saved)="saveRiskLimits($event)"
     ></app-risk-limits-drawer>
 
-    <!-- Live Risk & Performance Metrics Bar -->
-    <div class="autotrade-metrics-bar">
-      <div class="metric-item">
-        <span class="m-label">Today P&L</span>
-        <span class="m-val" [class.profit]="(autotradeState?.todayRealizedPnL || 0) > 0" [class.loss]="(autotradeState?.todayRealizedPnL || 0) < 0">
-          {{ (autotradeState?.todayRealizedPnL || 0) >= 0 ? '+' : '' }}{{ (autotradeState?.todayRealizedPnL || 0) | currency:'USD':'symbol':'1.2-2' }}
-        </span>
-      </div>
-
-      <div class="metric-item">
-        <span class="m-label">Max Loss Limit</span>
-        <span class="m-val loss-limit">
-          -${{ autotradeState?.config?.maxDailyLoss || riskConfig.maxDailyLoss | number:'1.0-0' }}
-        </span>
-      </div>
-
-      <div class="metric-item">
-        <span class="m-label">Stop / Target</span>
-        <span class="m-val">
-          {{ autotradeState?.config?.stopLossMultiplier || riskConfig.stopLossMultiplier }}x / {{ autotradeState?.config?.profitTargetPct || riskConfig.profitTargetPct }}%
-        </span>
-      </div>
-
-      <div class="metric-item">
-        <span class="m-label">Trades Today</span>
-        <span class="m-val">{{ autotradeState?.tradesExecutedToday || 0 }}</span>
-      </div>
-
-      <div class="metric-item">
-        <span class="m-label">Max Concurrent</span>
-        <span class="m-val">{{ autotradeState?.config?.maxConcurrentPositions || riskConfig.maxConcurrentPositions }}</span>
-      </div>
-
-      <div class="metric-item decision-metric">
-        <span class="m-label">Last Algorithmic Decision</span>
-        <span class="m-val decision-text" [title]="autotradeState?.lastScanDecision || 'Awaiting initial scan'">
-          {{ autotradeState?.lastScanDecision || 'Ready' }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Live Decision & Execution Activity Feed Terminal -->
-    <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
+    <app-trading-hours-drawer
+      *ngIf="showHoursSettings"
+      [config]="hoursConfig"
+      (saved)="saveTradingHours($event)"
+    ></app-trading-hours-drawer>
   </div>
 
-  <!-- Market Candlestick Chart Component -->
-  <app-market-chart [indicators]="chartIndicators"></app-market-chart>
+  <!-- Web Browser Mode Notice Banner (Subtle and compact) -->
+  <div class="web-preview-notice" *ngIf="!isElectron">
+    <span class="notice-icon">💡</span>
+    <div class="notice-text">
+      <strong>Web Browser Preview Mode:</strong> Automated scans and broker execution run inside the <strong>Balaboost Desktop App</strong>. Simulated trade previews and interactive positions are active below.
+    </div>
+  </div>
 
-  <!-- Trade Recommendation & Paper Execution Ticket Component -->
-  <app-trade-recommendation-card
-    [tradePreview]="tradePreview"
-    [isLoading]="tradePreviewLoading"
-    [errorMessage]="tradePreviewError"
-    [hoursStatus]="hoursStatus"
-    [hoursConfig]="hoursConfig"
-    [targetProfitPercentage]="riskConfig.profitTargetPct || 50"
-    [isSubmittingOrder]="submittingOrder"
-    (refreshRequested)="fetchTradePreview()"
-    (orderSubmitted)="handleOrderSubmitted($event)"
-    (bypassToggled)="handleSandboxBypass($event)"
-  ></app-trade-recommendation-card>
+  <!-- Middle Cockpit Grid: Chart & Activity Feed (Left) vs Trade Recommendation Ticket (Right) -->
+  <div class="cockpit-grid">
+    <!-- Left Column: Candlestick Chart & Activity Terminal -->
+    <div class="cockpit-col-chart">
+      <app-market-chart [indicators]="chartIndicators"></app-market-chart>
+      <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
+    </div>
 
-  <!-- Orders & Working Positions Panel Component -->
-  <app-orders-list
-    [orders]="orders"
-    [isLoading]="ordersLoading"
-    [activeFilter]="orderFilter"
-    [hideCanceledAndRejected]="hideCanceledAndRejected"
-    [dismissedOrderIds]="dismissedOrderIds"
-    [cancellingOrderId]="cancelingOrderId"
-    [cancelMessage]="cancelMessage"
-    [profitTargetPct]="riskConfig.profitTargetPct || 50"
-    (filterChanged)="handleFilterChange($event)"
-    (hideCanceledToggled)="handleHideCanceledChange($event)"
-    (orderDismissed)="handleOrderDismissed($event)"
-    (allDismissedCleared)="handleClearDismissed()"
-    (refreshRequested)="fetchOrders()"
-    (cancelRequested)="cancelOrder($event)"
-    (closeModalRequested)="openCloseModal($event)"
-  ></app-orders-list>
+    <!-- Right Column: Trade Recommendation & Order Execution Ticket -->
+    <div class="cockpit-col-ticket">
+      <app-trade-recommendation-card
+        [tradePreview]="tradePreview"
+        [isLoading]="tradePreviewLoading"
+        [errorMessage]="tradePreviewError"
+        [hoursStatus]="hoursStatus"
+        [hoursConfig]="hoursConfig"
+        [targetProfitPercentage]="riskConfig.profitTargetPct || 50"
+        [isSubmittingOrder]="submittingOrder"
+        (refreshRequested)="fetchTradePreview()"
+        (orderSubmitted)="handleOrderSubmitted($event)"
+        (bypassToggled)="handleSandboxBypass($event)"
+      ></app-trade-recommendation-card>
+    </div>
+  </div>
+
+  <!-- Bottom Panel: Working Orders & Active Positions -->
+  <div class="cockpit-orders-panel">
+    <app-orders-list
+      [orders]="orders"
+      [isLoading]="ordersLoading"
+      [activeFilter]="orderFilter"
+      [hideCanceledAndRejected]="hideCanceledAndRejected"
+      [dismissedOrderIds]="dismissedOrderIds"
+      [cancellingOrderId]="cancelingOrderId"
+      [cancelMessage]="cancelMessage"
+      [profitTargetPct]="riskConfig.profitTargetPct || 50"
+      (filterChanged)="handleFilterChange($event)"
+      (hideCanceledToggled)="handleHideCanceledChange($event)"
+      (orderDismissed)="handleOrderDismissed($event)"
+      (allDismissedCleared)="handleClearDismissed()"
+      (refreshRequested)="fetchOrders()"
+      (cancelRequested)="cancelOrder($event)"
+      (closeModalRequested)="openCloseModal($event)"
+    ></app-orders-list>
+  </div>
 
   <!-- Close Position Modal Overlay Component -->
   <app-close-position-modal

@@ -1,4 +1,4 @@
-<div class="trade-panel" *ngIf="isLoading || tradePreview || errorMessage">
+<div class="trade-panel">
   <div class="trade-panel-header">
     <div class="panel-title">
       <h3>📊 Trade Recommendation</h3>
@@ -16,6 +16,15 @@
 
   <div class="trade-error" *ngIf="errorMessage">
     <span class="error-icon">⚠️</span> {{ errorMessage }}
+  </div>
+
+  <!-- Idle State when no preview has run yet -->
+  <div class="trade-idle" *ngIf="!tradePreview && !isLoading && !errorMessage">
+    <span class="idle-icon">🎯</span>
+    <div class="idle-info">
+      <strong>Awaiting Signal Analysis</strong>
+      <p>Click "Refresh Analysis" or start the Autotrade Engine to evaluate SPX trend indicators and generate a high-probability credit spread recommendation.</p>
+    </div>
   </div>
 
   <div class="trade-result" *ngIf="tradePreview && !isLoading">
