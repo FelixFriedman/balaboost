@@ -21,7 +21,8 @@ import {
   IChartApi,
   ISeriesApi,
   CandlestickSeries,
-  LineSeries
+  LineSeries,
+  TickMarkType
 } from 'lightweight-charts';
 import { ActiveBarValues, CandleBarData } from '../../../../../core/models/options-trading.model';
 
@@ -116,9 +117,15 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
           style: 3,
         },
       },
+      localization: {
+        locale: 'en-US',
+        dateFormat: 'yyyy-MM-dd',
+        timeFormatter: (time: any) => this.formatEasternTime(time),
+      },
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
+        tickMarkFormatter: (time: any, tickMarkType: TickMarkType) => this.formatTickMark(time, tickMarkType),
       }
     });
 
@@ -166,18 +173,7 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
       const ema8Val: any = param.seriesData.get(this.ema8LineSeries);
       const ema21Val: any = param.seriesData.get(this.ema21LineSeries);
 
-      let dateString = '';
-      if (typeof param.time === 'number') {
-        dateString = new Date(param.time * 1000).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        });
-      } else if (typeof param.time === 'object') {
-        const { year, month, day } = param.time as any;
-        dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      }
-
+      const dateString = this.formatEasternTime(param.time);
       const priceChange = barData.close - barData.open;
       const priceChangePct = barData.open > 0 ? (priceChange / barData.open) * 100 : 0;
 
@@ -203,18 +199,112 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
   }
 
   /**
+   * Formats a given timestamp or BusinessDay object into US Eastern Time (ET).
+   */
+  private formatEasternTime(time: any): string {
+    let timestamp: number;
+    if (typeof time === 'number') {
+      timestamp = time > 1e11 ? time : time * 1000;
+    } else if (typeof time === 'string') {
+      timestamp = new Date(time).getTime();
+    } else if (typeof time === 'object' && time !== null) {
+      const { year, month, day } = time;
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ET`;
+    } else {
+      return '';
+    }
+
+    if (isNaN(timestamp)) return '';
+
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(new Date(timestamp)) + ' ET';
+  }
+
+  /**
+   * Formats time scale tick mark labels in US Eastern Time (ET).
+   */
+  private formatTickMark(time: any, tickMarkType: TickMarkType): string | null {
+    let timestamp: number;
+    if (typeof time === 'number') {
+      timestamp = time > 1e11 ? time : time * 1000;
+    } else if (typeof time === 'string') {
+      timestamp = new Date(time).getTime();
+    } else if (typeof time === 'object' && time !== null) {
+      const { year, month, day } = time;
+      timestamp = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getTime();
+    } else {
+      return null;
+    }
+
+    if (isNaN(timestamp)) return null;
+    const d = new Date(timestamp);
+
+    switch (tickMarkType) {
+      case TickMarkType.Year:
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          year: 'numeric'
+        }).format(d);
+      case TickMarkType.Month:
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          month: 'short'
+        }).format(d);
+      case TickMarkType.DayOfMonth:
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          day: 'numeric'
+        }).format(d);
+      case TickMarkType.Time:
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }).format(d);
+      case TickMarkType.TimeWithSeconds:
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).format(d);
+      default:
+        return null;
+    }
+  }
+
+  /**
    * Transforms raw indicator payloads into lightweight-charts format and populates all 3 series.
    */
   private renderSeriesData(indicators: any): void {
     if (!this.chartInstance || !indicators.bars) return;
 
-    const candleData: CandleBarData[] = indicators.bars.map((bar: any) => ({
-      time: new Date(bar.time).getTime() / 1000,
-      open: bar.open,
-      high: bar.high,
-      low: bar.low,
-      close: bar.close
-    })).filter((bar: CandleBarData) => !isNaN(bar.time));
+    const candleData: CandleBarData[] = indicators.bars.map((bar: any) => {
+      let timeSec: number;
+      if (typeof bar.timestamp === 'number') {
+        timeSec = bar.timestamp;
+      } else if (typeof bar.time === 'number') {
+        timeSec = bar.time > 1e11 ? Math.floor(bar.time / 1000) : bar.time;
+      } else {
+        timeSec = Math.floor(new Date(bar.time).getTime() / 1000);
+      }
+      return {
+        time: timeSec,
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close
+      };
+    }).filter((bar: CandleBarData) => !isNaN(bar.time));
 
     const ema8Data = indicators.ema8.map((val: number, i: number) => ({
       time: candleData[i]?.time,
@@ -237,11 +327,7 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
       const lastEma8 = ema8Data.length > 0 ? ema8Data[ema8Data.length - 1]?.value : undefined;
       const lastEma21 = ema21Data.length > 0 ? ema21Data[ema21Data.length - 1]?.value : undefined;
 
-      const timeLabel = new Date(lastCandle.time * 1000).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
+      const timeLabel = this.formatEasternTime(lastCandle.time);
 
       this.latestBarValues = {
         time: timeLabel,
