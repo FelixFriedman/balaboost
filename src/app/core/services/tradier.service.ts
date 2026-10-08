@@ -336,6 +336,20 @@ export class TradierService {
     return null;
   }
 
+  async openAutotradeLogFile(): Promise<any> {
+    if (this.electronService.isElectron) {
+      return await this.electronService.ipcRenderer.invoke('autotrade:openLogFile');
+    }
+    return { success: false, message: 'Log file is available in Balaboost Desktop App' };
+  }
+
+  async getAutotradeLogPath(): Promise<string | null> {
+    if (this.electronService.isElectron) {
+      return (await this.electronService.ipcRenderer.invoke('autotrade:getLogPath')) as string;
+    }
+    return null;
+  }
+
   // ----- Settings Persistence -----
 
   async getAllSettings(): Promise<any> {

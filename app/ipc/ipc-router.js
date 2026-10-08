@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerIpcHandlers = registerIpcHandlers;
 const electron_1 = require("electron");
+const fs = require("fs");
 const ipc_channels_1 = require("./ipc-channels");
 const tradier_broker_1 = require("../brokers/tradier/tradier-broker");
 const indicators_service_1 = require("../analysis/indicators-service");
@@ -26,12 +27,13 @@ const storage_1 = require("../storage");
  */
 function registerIpcHandlers() {
     const settingsStore = new storage_1.SettingsStore();
+    const engineLogger = new storage_1.EngineLogger();
     const tradierBroker = new tradier_broker_1.TradierBroker();
     const indicatorsService = new indicators_service_1.IndicatorsService(tradierBroker);
     const marketTagger = new market_tagger_1.MarketTagger();
     const pricingEngine = new trading_1.OptionsPricingEngine(tradierBroker);
     const hoursFilter = new trading_1.TradingHoursFilter(settingsStore.getTradingHoursConfig());
-    const autotradeEngine = new trading_1.AutotradeEngine(tradierBroker, indicatorsService, marketTagger, pricingEngine, hoursFilter, settingsStore.getAutotradeConfig());
+    const autotradeEngine = new trading_1.AutotradeEngine(tradierBroker, indicatorsService, marketTagger, pricingEngine, hoursFilter, settingsStore.getAutotradeConfig(), engineLogger);
     // Auto-resume engine if user previously had it running and autoResumeOnLaunch is enabled
     const storedSettings = settingsStore.getAll();
     if (storedSettings.autoResumeOnLaunch && storedSettings.autotradeActive) {
@@ -193,6 +195,17 @@ function registerIpcHandlers() {
     electron_1.ipcMain.handle(ipc_channels_1.IPC.AUTOTRADE_TRIGGER_SCAN, () => __awaiter(this, void 0, void 0, function* () {
         return yield autotradeEngine.triggerScan();
     }));
+    electron_1.ipcMain.handle(ipc_channels_1.IPC.AUTOTRADE_OPEN_LOG_FILE, () => __awaiter(this, void 0, void 0, function* () {
+        const logPath = autotradeEngine.getLogFilePath();
+        if (logPath && fs.existsSync(logPath)) {
+            electron_1.shell.showItemInFolder(logPath);
+            return { success: true, path: logPath };
+        }
+        return { success: false, error: 'Log file not found or empty yet' };
+    }));
+    electron_1.ipcMain.handle(ipc_channels_1.IPC.AUTOTRADE_GET_LOG_PATH, () => {
+        return autotradeEngine.getLogFilePath();
+    });
     // ----- Settings Persistence -----
     electron_1.ipcMain.handle(ipc_channels_1.IPC.SETTINGS_GET_ALL, () => {
         return settingsStore.getAll();

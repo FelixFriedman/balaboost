@@ -35,6 +35,8 @@ exports.IPC = {
     AUTOTRADE_SET_CONFIG: 'autotrade:setConfig',
     AUTOTRADE_RESET_CIRCUIT_BREAKER: 'autotrade:resetCircuitBreaker',
     AUTOTRADE_TRIGGER_SCAN: 'autotrade:triggerScan',
+    AUTOTRADE_OPEN_LOG_FILE: 'autotrade:openLogFile',
+    AUTOTRADE_GET_LOG_PATH: 'autotrade:getLogPath',
     // Settings Persistence
     SETTINGS_GET_ALL: 'settings:getAll',
     SETTINGS_SAVE_UI_PREFS: 'settings:saveUiPrefs',

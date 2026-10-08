@@ -1,10 +1,11 @@
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, shell } from 'electron';
+import * as fs from 'fs';
 import { IPC } from './ipc-channels';
 import { TradierBroker } from '../brokers/tradier/tradier-broker';
 import { IndicatorsService } from '../analysis/indicators-service';
 import { MarketTagger } from '../analysis/market-tagger';
 import { OptionsPricingEngine, TradingHoursFilter, AutotradeEngine } from '../trading';
-import { SettingsStore } from '../storage';
+import { SettingsStore, EngineLogger } from '../storage';
 import { AppEnvironment } from '../environment';
 
 /**
@@ -16,6 +17,7 @@ import { AppEnvironment } from '../environment';
  */
 export function registerIpcHandlers(): void {
   const settingsStore = new SettingsStore();
+  const engineLogger = new EngineLogger();
   const tradierBroker = new TradierBroker();
   const indicatorsService = new IndicatorsService(tradierBroker);
   const marketTagger = new MarketTagger();
@@ -27,7 +29,8 @@ export function registerIpcHandlers(): void {
     marketTagger,
     pricingEngine,
     hoursFilter,
-    settingsStore.getAutotradeConfig()
+    settingsStore.getAutotradeConfig(),
+    engineLogger
   );
 
   // Auto-resume engine if user previously had it running and autoResumeOnLaunch is enabled
@@ -211,6 +214,19 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.AUTOTRADE_TRIGGER_SCAN, async () => {
     return await autotradeEngine.triggerScan();
+  });
+
+  ipcMain.handle(IPC.AUTOTRADE_OPEN_LOG_FILE, async () => {
+    const logPath = autotradeEngine.getLogFilePath();
+    if (logPath && fs.existsSync(logPath)) {
+      shell.showItemInFolder(logPath);
+      return { success: true, path: logPath };
+    }
+    return { success: false, error: 'Log file not found or empty yet' };
+  });
+
+  ipcMain.handle(IPC.AUTOTRADE_GET_LOG_PATH, () => {
+    return autotradeEngine.getLogFilePath();
   });
 
   // ----- Settings Persistence -----

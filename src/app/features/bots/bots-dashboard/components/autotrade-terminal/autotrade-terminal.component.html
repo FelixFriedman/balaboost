@@ -1,21 +1,101 @@
 <div class="autotrade-logs-section">
+  <!-- Terminal Main Header -->
   <div class="logs-header" (click)="toggleCollapse()">
     <div class="logs-header-left">
       <span class="logs-title">📋 Live Engine Activity Feed</span>
-      <span class="logs-count">{{ (logs ? logs.length : 0) }} events</span>
+      <span class="logs-count">{{ getCount('all') }} events</span>
+      <span class="persisted-pill" title="Engine events are permanently recorded to disk at ~/Library/Application Support/balaboost/logs/autotrade.log">💾 Disk Logged</span>
     </div>
-    <button class="logs-toggle-btn" type="button" (click)="$event.stopPropagation(); toggleCollapse()">
-      {{ isCollapsed ? '▲ Expand Feed' : '▼ Collapse' }}
-    </button>
+    <div class="logs-header-actions" (click)="$event.stopPropagation()">
+      <button 
+        class="logs-file-btn" 
+        type="button" 
+        (click)="openLogFileRequested.emit()" 
+        title="Open persistent autotrade.log file on your Mac"
+      >
+        📁 View Log File
+      </button>
+      <button class="logs-toggle-btn" type="button" (click)="toggleCollapse()">
+        {{ isCollapsed ? '▲ Expand Feed' : '▼ Collapse' }}
+      </button>
+    </div>
   </div>
+
+  <!-- Terminal Controls & Filters Bar -->
+  <div class="logs-controls-bar" *ngIf="!isCollapsed">
+    <!-- Live Search Input -->
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        placeholder="Search logs (e.g. order, cancel, signal, stale, fill)..." 
+        class="search-input"
+      />
+      <button class="clear-search-btn" *ngIf="searchTerm" (click)="searchTerm = ''" title="Clear search">✕</button>
+    </div>
+
+    <!-- Filter Chips -->
+    <div class="level-filters">
+      <button 
+        class="level-chip all" 
+        [class.active]="activeLevelFilter === 'all'" 
+        (click)="setLevelFilter('all')"
+      >
+        All <span class="chip-count">{{ getCount('all') }}</span>
+      </button>
+      <button 
+        class="level-chip success" 
+        [class.active]="activeLevelFilter === 'success'" 
+        (click)="setLevelFilter('success')"
+      >
+        <span class="chip-dot success"></span> Success <span class="chip-count">{{ getCount('success') }}</span>
+      </button>
+      <button 
+        class="level-chip warn" 
+        [class.active]="activeLevelFilter === 'warn'" 
+        (click)="setLevelFilter('warn')"
+      >
+        <span class="chip-dot warn"></span> Warn <span class="chip-count">{{ getCount('warn') }}</span>
+      </button>
+      <button 
+        class="level-chip error" 
+        [class.active]="activeLevelFilter === 'error'" 
+        (click)="setLevelFilter('error')"
+      >
+        <span class="chip-dot error"></span> Error <span class="chip-count">{{ getCount('error') }}</span>
+      </button>
+      <button 
+        class="level-chip info" 
+        [class.active]="activeLevelFilter === 'info'" 
+        (click)="setLevelFilter('info')"
+      >
+        <span class="chip-dot info"></span> Info <span class="chip-count">{{ getCount('info') }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Filtering Banner -->
+  <div class="filter-status-strip" *ngIf="!isCollapsed && (searchTerm || activeLevelFilter !== 'all')">
+    <span>Showing <strong>{{ filteredLogs.length }}</strong> of {{ logs.length }} events</span>
+    <button class="reset-filter-link" (click)="clearSearch()">Reset Filters</button>
+  </div>
+
+  <!-- Terminal Log Body -->
   <div class="logs-terminal" *ngIf="!isCollapsed">
-    <div class="log-row" *ngFor="let log of logs" [class]="log.level">
+    <div class="log-row" *ngFor="let log of filteredLogs" [class]="log.level">
       <span class="log-time">{{ log.timeFormatted }}</span>
       <span class="log-badge" [class]="log.level">{{ log.level | uppercase }}</span>
       <span class="log-msg">{{ log.message }}</span>
     </div>
-    <div class="log-empty" *ngIf="!logs || logs.length === 0">
-      Engine is idle. Awaiting next 30-second scan cycle...
+    <div class="log-empty" *ngIf="filteredLogs.length === 0">
+      <span *ngIf="searchTerm || activeLevelFilter !== 'all'">
+        No events matching "{{ searchTerm || activeLevelFilter }}". 
+        <button class="empty-reset-btn" (click)="clearSearch()">Clear Filters</button>
+      </span>
+      <span *ngIf="!searchTerm && activeLevelFilter === 'all'">
+        Engine is idle. Awaiting next 30-second scan cycle...
+      </span>
     </div>
   </div>
 </div>

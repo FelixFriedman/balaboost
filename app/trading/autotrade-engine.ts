@@ -5,6 +5,8 @@ import { MarketTagger } from '../analysis/market-tagger';
 import { OptionsPricingEngine } from './options-pricing-engine';
 import { TradingHoursFilter } from './trading-hours-filter';
 
+import { EngineLogger } from '../storage/engine-logger';
+
 export type AutotradeStatus = 'stopped' | 'running' | 'paused';
 
 export interface AutotradeRiskConfig {
@@ -78,12 +80,23 @@ export class AutotradeEngine {
     private marketTagger: MarketTagger,
     private pricingEngine: OptionsPricingEngine,
     private hoursFilter: TradingHoursFilter,
-    initialConfig?: Partial<AutotradeRiskConfig>
+    initialConfig?: Partial<AutotradeRiskConfig>,
+    private logger?: EngineLogger
   ) {
     if (initialConfig) {
       this.config = { ...this.config, ...initialConfig };
     }
+    if (this.logger) {
+      const persisted = this.logger.getRecentLogs(300);
+      if (persisted && persisted.length > 0) {
+        this.logs = persisted;
+      }
+    }
     this.addLog('info', `Autotrade engine initialized (Max loss: $${this.config.maxDailyLoss}, Stop: ${this.config.stopLossMultiplier}x, Target: ${this.config.profitTargetPct}%).`);
+  }
+
+  public getLogFilePath(): string {
+    return this.logger ? this.logger.getLogFilePath() : '';
   }
 
 
@@ -373,8 +386,12 @@ export class AutotradeEngine {
     };
 
     this.logs.unshift(entry);
-    if (this.logs.length > 80) {
+    if (this.logs.length > 1000) {
       this.logs.pop();
+    }
+
+    if (this.logger) {
+      this.logger.append(entry);
     }
   }
 }

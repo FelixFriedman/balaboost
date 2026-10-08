@@ -140,6 +140,9 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
   /** Cancellation success notification */
   cancelMessage: string | null = null;
 
+  /** Absolute path to local autotrade log file on disk */
+  autotradeLogPath: string | null = null;
+
   // ===== Trading Hours Filter State =====
 
   /** Current Eastern Time status and market window validation */
@@ -178,6 +181,15 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
     void this.fetchData();
     void this.fetchAccountBalance();
     void this.fetchOrders();
+    void this.fetchLogPath();
+  }
+
+  private async fetchLogPath(): Promise<void> {
+    try {
+      this.autotradeLogPath = await this.tradierService.getAutotradeLogPath();
+    } catch (e) {
+      console.warn('Could not fetch log path:', e);
+    }
   }
 
   ngOnDestroy(): void {
@@ -660,6 +672,22 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
     } catch (e: any) {
       this.autotradeActionMessage = `Failed to save risk config: ${e.message}`;
     } finally {
+      this.clearActionMessageAfterDelay();
+    }
+  }
+
+  async openLogFile(): Promise<void> {
+    try {
+      const res = await this.tradierService.openAutotradeLogFile();
+      if (res && res.error) {
+        this.autotradeActionMessage = `Log file: ${res.error}`;
+        this.clearActionMessageAfterDelay();
+      } else if (res && res.path) {
+        this.autotradeActionMessage = `Revealed log file: ${res.path}`;
+        this.clearActionMessageAfterDelay();
+      }
+    } catch (e: any) {
+      this.autotradeActionMessage = `Could not open log file: ${e.message || String(e)}`;
       this.clearActionMessageAfterDelay();
     }
   }

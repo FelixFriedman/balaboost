@@ -225,7 +225,11 @@
 
     <!-- Right Column: Live Engine Activity Feed Terminal -->
     <div class="operations-col">
-      <app-autotrade-terminal [logs]="autotradeState?.logs || []"></app-autotrade-terminal>
+      <app-autotrade-terminal
+        [logs]="autotradeState?.logs || []"
+        [logFilePath]="autotradeLogPath"
+        (openLogFileRequested)="openLogFile()"
+      ></app-autotrade-terminal>
     </div>
   </div>
 

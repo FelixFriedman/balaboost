@@ -11,12 +11,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AutotradeEngine = void 0;
 class AutotradeEngine {
-    constructor(broker, indicatorsService, marketTagger, pricingEngine, hoursFilter, initialConfig) {
+    constructor(broker, indicatorsService, marketTagger, pricingEngine, hoursFilter, initialConfig, logger) {
         this.broker = broker;
         this.indicatorsService = indicatorsService;
         this.marketTagger = marketTagger;
         this.pricingEngine = pricingEngine;
         this.hoursFilter = hoursFilter;
+        this.logger = logger;
         this.status = 'stopped';
         this.timer = null;
         this.isScanning = false;
@@ -45,7 +46,16 @@ class AutotradeEngine {
         if (initialConfig) {
             this.config = Object.assign(Object.assign({}, this.config), initialConfig);
         }
+        if (this.logger) {
+            const persisted = this.logger.getRecentLogs(300);
+            if (persisted && persisted.length > 0) {
+                this.logs = persisted;
+            }
+        }
         this.addLog('info', `Autotrade engine initialized (Max loss: $${this.config.maxDailyLoss}, Stop: ${this.config.stopLossMultiplier}x, Target: ${this.config.profitTargetPct}%).`);
+    }
+    getLogFilePath() {
+        return this.logger ? this.logger.getLogFilePath() : '';
     }
     getState() {
         return {
@@ -302,8 +312,11 @@ class AutotradeEngine {
             message
         };
         this.logs.unshift(entry);
-        if (this.logs.length > 80) {
+        if (this.logs.length > 1000) {
             this.logs.pop();
+        }
+        if (this.logger) {
+            this.logger.append(entry);
         }
     }
 }
