@@ -252,15 +252,50 @@ export class TradierService {
     if (this.electronService.isElectron) {
       return (await this.electronService.ipcRenderer.invoke('trading:getHoursStatus')) as any;
     }
+
+    // Dynamic browser fallback: compute live Eastern Time and market window
+    const now = new Date();
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', { // YYYY-MM-DD
+      timeZone: 'America/New_York'
+    });
+    const hourFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+
+    const parts = hourFormatter.formatToParts(now);
+    const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+    const totalMinutes = h * 60 + m;
+
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    const isMarketOpen = !isWeekend && totalMinutes >= (9 * 60 + 30) && totalMinutes < (16 * 60);
+    const isWindowActive = !isWeekend && totalMinutes >= (10 * 60) && totalMinutes < (15 * 60);
+
+    const formattedClock = timeFormatter.format(now) + ' EDT';
+
     return {
-      isWithinWindow: true,
-      canExecuteTrade: true,
-      marketStatus: 'open',
-      windowStatus: 'active',
-      currentEasternTime: '10:30 ET',
-      currentEasternDate: '2026-10-06',
-      formattedClock: '10:30:00 AM',
-      reason: 'Active Trading Window (Web Preview)',
+      isWithinWindow: isWindowActive,
+      canExecuteTrade: isWindowActive,
+      marketStatus: isMarketOpen ? 'open' : 'closed',
+      windowStatus: isWindowActive ? 'active' : 'paused',
+      currentEasternTime: timeFormatter.format(now) + ' ET',
+      currentEasternDate: dateFormatter.format(now),
+      formattedClock,
+      reason: isWindowActive
+        ? 'Active Trading Window'
+        : isMarketOpen
+        ? 'Outside Configured Trading Window (10:00 - 15:00 ET)'
+        : 'Market Closed: Regular session is 9:30 AM - 4:00 PM ET',
       config: {
         enabled: true,
         startTime: '10:00',
