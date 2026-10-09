@@ -312,6 +312,12 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
+  &.closed {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+
   &.rejected {
     background: rgba(239, 68, 68, 0.15);
     color: #ef4444;
@@ -384,6 +390,16 @@
 
       &.text-roc {
         color: #60a5fa;
+        font-weight: 700;
+      }
+
+      &.text-debit {
+        color: #f87171;
+        font-weight: 700;
+      }
+
+      &.text-closed {
+        color: #94a3b8;
         font-weight: 700;
       }
 
@@ -522,5 +538,15 @@
       border-color: var(--color-brand-secondary);
       transform: translateY(-1px);
     }
+  }
+
+  .already-closed-tag {
+    padding: 4px 10px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #94a3b8;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
   }
 }

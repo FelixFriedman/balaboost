@@ -75,7 +75,9 @@
           <span class="order-strategy">{{ order.strategy || order.class | uppercase }}</span>
         </div>
         <div class="order-card-right">
-          <span class="status-badge" [class]="order.status">{{ order.status === 'filled' ? 'FILLED / POSITION' : (order.status | uppercase) }}</span>
+          <span class="status-badge" [class]="order.status" [class.closed]="isClosingOrder(order) || isOrderClosed(order)">
+            {{ isClosingOrder(order) ? 'FILLED (EXIT ORDER)' : (isOrderClosed(order) ? 'CLOSED / REALIZED' : (order.status === 'filled' ? 'OPEN POSITION' : (order.status | uppercase))) }}
+          </span>
         </div>
       </div>
 
@@ -85,8 +87,8 @@
           <span class="meta-val">{{ order.type | uppercase }}</span>
         </div>
         <div class="order-meta-item">
-          <span class="meta-label">Limit Price:</span>
-          <span class="meta-val">${{ order.price | number:'1.2-2' }}</span>
+          <span class="meta-label">{{ order.price ? 'Limit Price:' : 'Fill Price:' }}</span>
+          <span class="meta-val">${{ getOrderEffectivePrice(order) | number:'1.2-2' }}</span>
         </div>
         <div class="order-meta-item">
           <span class="meta-label">Quantity:</span>
@@ -107,24 +109,41 @@
           <span class="meta-val">{{ order.create_date | date:'short' }}</span>
         </div>
 
-        <!-- Financial Breakdown for Credit Spreads -->
+        <!-- Financial Breakdown for Credit Spreads vs Closing Orders -->
         <ng-container *ngIf="order.class === 'multileg' && order.leg && order.leg.length === 2 && getOrderSpreadWidth(order) > 0">
-          <div class="order-meta-item">
-            <span class="meta-label">Total Credit:</span>
-            <span class="meta-val text-credit">${{ getOrderTotalCredit(order) | number:'1.2-2' }}</span>
-          </div>
-          <div class="order-meta-item">
-            <span class="meta-label">🎯 Target Profit ({{ profitTargetPct }}%):</span>
-            <span class="meta-val text-target">${{ getOrderExpectedProfit(order) | number:'1.2-2' }}</span>
-          </div>
-          <div class="order-meta-item">
-            <span class="meta-label">Collateral Held:</span>
-            <span class="meta-val text-collateral">${{ getOrderMaxCollateral(order) | number:'1.2-2' }}</span>
-          </div>
-          <div class="order-meta-item">
-            <span class="meta-label">Target ROC:</span>
-            <span class="meta-val text-roc">{{ getOrderReturnOnCapital(order) | number:'1.1-2' }}%</span>
-          </div>
+          <ng-container *ngIf="isClosingOrder(order)">
+            <div class="order-meta-item">
+              <span class="meta-label">Debit Paid to Close:</span>
+              <span class="meta-val text-debit">-${{ getOrderTotalCredit(order) | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="meta-label">Exit Fill Price:</span>
+              <span class="meta-val">${{ getOrderEffectivePrice(order) | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="meta-label">Status:</span>
+              <span class="meta-val text-closed">EXIT EXECUTED</span>
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="!isClosingOrder(order)">
+            <div class="order-meta-item">
+              <span class="meta-label">Total Credit:</span>
+              <span class="meta-val text-credit">${{ getOrderTotalCredit(order) | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="meta-label">🎯 Target Profit ({{ profitTargetPct }}%):</span>
+              <span class="meta-val text-target">${{ getOrderExpectedProfit(order) | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="meta-label">Collateral Held:</span>
+              <span class="meta-val text-collateral">${{ getOrderMaxCollateral(order) | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-meta-item">
+              <span class="meta-label">Target ROC:</span>
+              <span class="meta-val text-roc">{{ getOrderReturnOnCapital(order) | number:'1.1-2' }}%</span>
+            </div>
+          </ng-container>
         </ng-container>
       </div>
 
@@ -168,11 +187,15 @@
 
         <button 
           class="close-pos-btn" 
-          *ngIf="order.status === 'filled' && order.leg && order.leg.length === 2"
+          *ngIf="order.status === 'filled' && order.leg && order.leg.length === 2 && !isClosingOrder(order) && !isOrderClosed(order)"
           (click)="closeModalRequested.emit(order)"
         >
           🚪 Close Position
         </button>
+
+        <span class="already-closed-tag" *ngIf="order.status === 'filled' && (isClosingOrder(order) || isOrderClosed(order))">
+          ✓ Closed / Realized
+        </span>
       </div>
     </div>
   </div>

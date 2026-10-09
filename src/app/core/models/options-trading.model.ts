@@ -65,6 +65,10 @@ export interface TradierOrder {
   quantity: number;
   /** Executed limit price per share or net credit/debit */
   price?: number;
+  /** Average fill price reported by Tradier */
+  avg_fill_price?: number;
+  /** Executed quantity filled */
+  exec_quantity?: number;
   /** Time in force: 'day' | 'gtc' */
   duration: 'day' | 'gtc' | string;
   /** Order status reported by broker */

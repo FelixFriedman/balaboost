@@ -157,12 +157,71 @@ export class OrdersListComponent {
   }
 
   /**
+   * Determine the effective price per share of the order, accounting for limit price,
+   * filled market orders, and leg-by-leg average execution fill prices.
+   */
+  getOrderEffectivePrice(order: TradierOrder): number {
+    if (order.price && order.price > 0) {
+      return order.price;
+    }
+    if (order.leg && order.leg.length === 2) {
+      const leg1 = order.leg[0];
+      const leg2 = order.leg[1];
+      const p1 = Number(leg1.avg_fill_price || 0);
+      const p2 = Number(leg2.avg_fill_price || 0);
+      if (p1 > 0 && p2 > 0) {
+        return Number(Math.abs(p1 - p2).toFixed(2));
+      }
+    }
+    if (order.avg_fill_price && order.avg_fill_price !== 0) {
+      return Number(Math.abs(order.avg_fill_price).toFixed(2));
+    }
+    return 0;
+  }
+
+  /**
+   * Check whether this order is a closing transaction (e.g. buy_to_close, sell_to_close).
+   */
+  isClosingOrder(order: TradierOrder): boolean {
+    if (!order.leg || order.leg.length === 0) {
+      return (order.side || '').toLowerCase().includes('close');
+    }
+    return order.leg.some(l => (l.side || '').toLowerCase().includes('close'));
+  }
+
+  /**
+   * Check if an opening filled order has already been closed out by a subsequent closing order today.
+   */
+  isOrderClosed(order: TradierOrder): boolean {
+    if (this.isClosingOrder(order)) {
+      return true;
+    }
+    if (order.status !== 'filled') {
+      return false;
+    }
+    if (!order.leg || order.leg.length === 0) {
+      return false;
+    }
+    const orderOptionSymbols = new Set(order.leg.map(l => l.option_symbol).filter(Boolean));
+    if (orderOptionSymbols.size === 0) return false;
+
+    // Check if any filled closing order in this.orders matches these option symbols
+    return this.orders.some(o =>
+      o.id !== order.id &&
+      o.status === 'filled' &&
+      this.isClosingOrder(o) &&
+      o.leg &&
+      o.leg.some(l => orderOptionSymbols.has(l.option_symbol))
+    );
+  }
+
+  /**
    * Calculate total credit received in dollars upon fill.
    */
   getOrderTotalCredit(order: TradierOrder): number {
-    const limitPrice = order.price || 0;
+    const effectivePrice = this.getOrderEffectivePrice(order);
     const spreads = this.getSpreadCount(order);
-    return limitPrice * spreads * 100;
+    return effectivePrice * spreads * 100;
   }
 
   /**
@@ -178,9 +237,9 @@ export class OrdersListComponent {
    */
   getOrderMaxCollateral(order: TradierOrder): number {
     const spreadWidth = this.getOrderSpreadWidth(order);
-    const limitPrice = order.price || 0;
+    const effectivePrice = this.getOrderEffectivePrice(order);
     const spreads = this.getSpreadCount(order);
-    return calculateMaxCollateralHeld(spreadWidth, limitPrice, spreads);
+    return calculateMaxCollateralHeld(spreadWidth, effectivePrice, spreads);
   }
 
   /**

@@ -189,6 +189,16 @@ export class TradierBroker implements IBrokerMarketData {
     const rawOrders = ordersRes?.orders?.order;
     const todayOrders: any[] = !rawOrders ? [] : Array.isArray(rawOrders) ? rawOrders : [rawOrders];
 
+    for (const ord of todayOrders) {
+      if (ord.status === 'filled' && (!ord.price || ord.price === 0) && Array.isArray(ord.leg) && ord.leg.length === 2) {
+        const p1 = Number(ord.leg[0].avg_fill_price || 0);
+        const p2 = Number(ord.leg[1].avg_fill_price || 0);
+        if (p1 > 0 && p2 > 0) {
+          ord.price = Number(Math.abs(p1 - p2).toFixed(2));
+        }
+      }
+    }
+
     const rawPositions = positionsRes?.positions?.position;
     const currentPositions: any[] = !rawPositions ? [] : Array.isArray(rawPositions) ? rawPositions : [rawPositions];
 

@@ -167,6 +167,15 @@ class TradierBroker {
             ]);
             const rawOrders = (_a = ordersRes === null || ordersRes === void 0 ? void 0 : ordersRes.orders) === null || _a === void 0 ? void 0 : _a.order;
             const todayOrders = !rawOrders ? [] : Array.isArray(rawOrders) ? rawOrders : [rawOrders];
+            for (const ord of todayOrders) {
+                if (ord.status === 'filled' && (!ord.price || ord.price === 0) && Array.isArray(ord.leg) && ord.leg.length === 2) {
+                    const p1 = Number(ord.leg[0].avg_fill_price || 0);
+                    const p2 = Number(ord.leg[1].avg_fill_price || 0);
+                    if (p1 > 0 && p2 > 0) {
+                        ord.price = Number(Math.abs(p1 - p2).toFixed(2));
+                    }
+                }
+            }
             const rawPositions = (_b = positionsRes === null || positionsRes === void 0 ? void 0 : positionsRes.positions) === null || _b === void 0 ? void 0 : _b.position;
             const currentPositions = !rawPositions ? [] : Array.isArray(rawPositions) ? rawPositions : [rawPositions];
             const synthesizedOrders = this.synthesizeOrdersFromOpenPositions(currentPositions, todayOrders);
