@@ -32,11 +32,11 @@ export class TradierService {
       quotes: {
         quote: {
           symbol: symbol || 'SPX',
-          last: 7770.03,
-          bid: 7768.54,
-          ask: 7771.70,
-          change: 47.31,
-          change_percentage: 0.62
+          last: 7788.53,
+          bid: 7785.86,
+          ask: 7791.19,
+          change: 23.17,
+          change_percentage: 0.30
         }
       }
     };
@@ -63,54 +63,100 @@ export class TradierService {
     return ['bull market', 'healthy momentum'];
   }
 
-  async getIndicators(symbol: string): Promise<any> {
+  async getIndicators(symbol: string, forceRefresh: boolean = false): Promise<any> {
     if (this.electronService.isElectron) {
-      return (await this.electronService.ipcRenderer.invoke('tradier:getIndicators', symbol)) as any;
+      return (await this.electronService.ipcRenderer.invoke('tradier:getIndicators', symbol, forceRefresh)) as any;
     }
     return this.generateBrowserFallbackIndicators(symbol);
   }
 
-  private generateBrowserFallbackIndicators(symbol: string): any {
+  private generateBrowserFallbackIndicators(_symbol: string): any {
     const bars: any[] = [];
-    let currentPrice = 7650;
-    const now = Math.floor(Date.now() / 1000);
-    const intervalSec = 3600 * 24; // Daily
-    const numBars = 40;
+    const now = new Date();
 
-    for (let i = numBars; i >= 0; i--) {
-      const time = new Date((now - i * intervalSec) * 1000).toISOString();
-      const delta = (Math.random() - 0.46) * 35; // slight upward drift
-      const open = Math.round(currentPrice * 100) / 100;
-      const close = Math.round((currentPrice + delta) * 100) / 100;
-      const high = Math.round((Math.max(open, close) + Math.random() * 18) * 100) / 100;
-      const low = Math.round((Math.min(open, close) - Math.random() * 18) * 100) / 100;
-      bars.push({
-        time,
-        open,
-        high,
-        low,
-        close,
-        volume: Math.floor(100000 + Math.random() * 50000)
-      });
-      currentPrice = close;
+    // Determine current time in US Eastern Time
+    const nyTimeStr = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false });
+    const [nyHour, nyMin] = nyTimeStr.split(':').map(Number);
+
+    // Anchor baseline price to current SPX (~7785)
+    let price = 7725;
+
+    // Collect previous 5 weekdays
+    const days: Date[] = [];
+    for (let d = 7; d >= 1; d--) {
+      const pastDate = new Date(now.getTime() - d * 24 * 3600 * 1000);
+      const dayOfWeek = pastDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        days.push(pastDate);
+      }
+    }
+    days.push(now);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+      const targetDay = days[dayIdx];
+      const isToday = dayIdx === days.length - 1;
+      const dateFormatted = targetDay.toISOString().split('T')[0];
+
+      // Regular Trading Hours: 9:30 AM to 4:00 PM ET
+      for (let h = 9; h <= 16; h++) {
+        for (const m of [0, 15, 30, 45]) {
+          if (h === 9 && m < 30) continue;
+          if (h === 16 && m > 0) continue;
+
+          // Don't generate future bars for today
+          if (isToday) {
+            if (h > nyHour || (h === nyHour && m > nyMin)) {
+              continue;
+            }
+          }
+
+          const timeIso = `${dateFormatted}T${pad(h)}:${pad(m)}:00`;
+          const timeSec = Math.floor(new Date(timeIso).getTime() / 1000);
+
+          const delta = (Math.random() - 0.47) * 4.5;
+          const open = Math.round(price * 100) / 100;
+          const close = Math.round((price + delta) * 100) / 100;
+          const high = Math.round((Math.max(open, close) + Math.random() * 3.5) * 100) / 100;
+          const low = Math.round((Math.min(open, close) - Math.random() * 3.5) * 100) / 100;
+
+          bars.push({
+            time: timeIso,
+            timestamp: timeSec,
+            open,
+            high,
+            low,
+            close,
+            volume: Math.floor(10000 + Math.random() * 25000)
+          });
+          price = close;
+        }
+      }
     }
 
-    const ema = (period: number) => {
+    const calculateEma = (period: number): (number | null)[] => {
+      if (bars.length < period) return new Array(bars.length).fill(null);
       const k = 2 / (period + 1);
-      const res: number[] = [];
+      const res: (number | null)[] = [];
       let prev = bars[0].close;
+
       for (let i = 0; i < bars.length; i++) {
-        const val = bars[i].close * k + prev * (1 - k);
-        res.push(Number(val.toFixed(2)));
-        prev = val;
+        if (i < period - 1) {
+          res.push(null);
+        } else {
+          const val = bars[i].close * k + prev * (1 - k);
+          res.push(Number(val.toFixed(2)));
+          prev = val;
+        }
       }
       return res;
     };
 
     return {
       bars,
-      ema8: ema(8),
-      ema21: ema(21)
+      ema8: calculateEma(8),
+      ema21: calculateEma(21)
     };
   }
 

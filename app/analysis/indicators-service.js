@@ -25,10 +25,10 @@ class IndicatorsService {
         this.CACHE_DURATION_MS = 60 * 1000; // 1 minute cache
     }
     getIndicators(symbol_1) {
-        return __awaiter(this, arguments, void 0, function* (symbol, interval = '15min') {
+        return __awaiter(this, arguments, void 0, function* (symbol, interval = '15min', forceRefresh = false) {
             const cacheKey = `${symbol}_${interval}`;
             const cached = this.cache.get(cacheKey);
-            if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION_MS) {
+            if (!forceRefresh && cached && Date.now() - cached.timestamp < this.CACHE_DURATION_MS) {
                 return cached.data;
             }
             const bars = yield this.fetchBars(symbol, interval);

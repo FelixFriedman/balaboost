@@ -67,6 +67,15 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
   /** Historical OHLC bars and technical indicators dataset for charting */
   chartIndicators: any = null;
 
+  /** Timestamp of the last successful chart/market data fetch */
+  chartLastUpdated: Date = new Date();
+
+  /** Indicates whether chart/market data is currently refreshing */
+  chartLoading: boolean = false;
+
+  /** Polling timer handle for refreshing market data, indicators, and orders */
+  private marketDataPollInterval: ReturnType<typeof setInterval> | null = null;
+
   /** Algorithmic credit spread recommendation preview */
   tradePreview: TradeRecommendation | null = null;
 
@@ -182,6 +191,12 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
     void this.fetchAccountBalance();
     void this.fetchOrders();
     void this.fetchLogPath();
+
+    // Auto-poll market data, chart indicators, and order status every 30 seconds
+    this.marketDataPollInterval = setInterval(() => {
+      void this.fetchData(true);
+      void this.fetchOrders(true);
+    }, 30000);
   }
 
   private async fetchLogPath(): Promise<void> {
@@ -198,6 +213,9 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
     }
     if (this.autotradePollInterval) {
       clearInterval(this.autotradePollInterval);
+    }
+    if (this.marketDataPollInterval) {
+      clearInterval(this.marketDataPollInterval);
     }
   }
 
@@ -261,21 +279,41 @@ export class BotsDashboardComponent implements OnInit, OnDestroy {
 
   /**
    * Fetches quote data, market tags, indicators, and initializes trade recommendation.
+   *
+   * @param silent If true, suppresses chart loading spinner for background polling.
+   * @param forceRefresh If true, forces cache invalidation on the market data provider.
    */
-  private async fetchData(): Promise<void> {
+  async fetchData(silent: boolean = false, forceRefresh: boolean = false): Promise<void> {
+    if (!silent) {
+      this.chartLoading = true;
+    }
     try {
       this.quoteData = await this.tradierService.getQuote('SPX');
       this.marketTags = await this.tradierService.getMarketTags('SPX');
 
-      const indicators = await this.tradierService.getIndicators('SPX');
+      const indicators = await this.tradierService.getIndicators('SPX', forceRefresh);
       if (indicators && indicators.bars) {
-        this.chartIndicators = indicators;
+        this.chartIndicators = { ...indicators };
       }
+      this.chartLastUpdated = new Date();
 
       await this.fetchTradePreview();
     } catch (e) {
       console.error('Failed to fetch market data:', e);
+    } finally {
+      this.chartLoading = false;
     }
+  }
+
+  /**
+   * Manual refresh triggered by user clicking the refresh button on the chart.
+   */
+  async onRefreshChart(): Promise<void> {
+    await Promise.all([
+      this.fetchData(false, true),
+      this.fetchOrders(false),
+      this.fetchAccountBalance()
+    ]);
   }
 
   /**

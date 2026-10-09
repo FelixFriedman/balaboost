@@ -38,11 +38,11 @@ export class IndicatorsService {
 
   constructor(private broker: IBrokerMarketData) {}
 
-  public async getIndicators(symbol: string, interval: string = '15min'): Promise<CalculatedIndicators> {
+  public async getIndicators(symbol: string, interval: string = '15min', forceRefresh: boolean = false): Promise<CalculatedIndicators> {
     const cacheKey = `${symbol}_${interval}`;
     const cached = this.cache.get(cacheKey);
 
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION_MS) {
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < this.CACHE_DURATION_MS) {
       return cached.data;
     }
 

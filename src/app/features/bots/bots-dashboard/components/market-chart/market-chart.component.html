@@ -47,6 +47,22 @@
 
     <div class="chart-legend">
       <div class="legend-item tz-badge">ET (New York)</div>
+
+      <div class="legend-item update-badge" *ngIf="lastUpdated" title="Last updated timestamp">
+        <span class="update-lbl">Updated:</span>
+        <span class="update-time">{{ lastUpdatedTimeFormatted }}</span>
+      </div>
+
+      <button
+        type="button"
+        class="refresh-chart-btn"
+        (click)="onRefreshClicked()"
+        [disabled]="isLoading"
+        title="Refresh market data & chart">
+        <span class="refresh-icon" [class.spinning]="isLoading">↻</span>
+        <span class="refresh-txt">{{ isLoading ? 'Updating...' : 'Refresh' }}</span>
+      </button>
+
       <div class="legend-item"><span class="color-box ema8"></span> 8 EMA</div>
       <div class="legend-item"><span class="color-box ema21"></span> 21 EMA</div>
     </div>

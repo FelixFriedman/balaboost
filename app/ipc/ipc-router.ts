@@ -83,8 +83,8 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle(IPC.TRADIER_GET_INDICATORS, async (_event, symbol: string) => {
-    return await indicatorsService.getIndicators(symbol);
+  ipcMain.handle(IPC.TRADIER_GET_INDICATORS, async (_event, symbol: string, forceRefresh: boolean = false) => {
+    return await indicatorsService.getIndicators(symbol, '15min', forceRefresh);
   });
 
   // ----- Trading -----

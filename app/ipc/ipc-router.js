@@ -76,8 +76,8 @@ function registerIpcHandlers() {
             throw e;
         }
     }));
-    electron_1.ipcMain.handle(ipc_channels_1.IPC.TRADIER_GET_INDICATORS, (_event, symbol) => __awaiter(this, void 0, void 0, function* () {
-        return yield indicatorsService.getIndicators(symbol);
+    electron_1.ipcMain.handle(ipc_channels_1.IPC.TRADIER_GET_INDICATORS, (_event_1, symbol_1, ...args_1) => __awaiter(this, [_event_1, symbol_1, ...args_1], void 0, function* (_event, symbol, forceRefresh = false) {
+        return yield indicatorsService.getIndicators(symbol, '15min', forceRefresh);
     }));
     // ----- Trading -----
     electron_1.ipcMain.handle(ipc_channels_1.IPC.TRADING_PREVIEW_ORDER, (_event, symbol) => __awaiter(this, void 0, void 0, function* () {

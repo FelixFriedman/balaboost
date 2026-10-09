@@ -8,9 +8,11 @@
 import {
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnChanges,
   OnDestroy,
+  Output,
   SimpleChanges,
   ViewChild,
   AfterViewInit
@@ -41,6 +43,15 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
    */
   @Input() indicators: any = null;
 
+  /** Timestamp of the last data update */
+  @Input() lastUpdated: Date | null = null;
+
+  /** Whether a data refresh is in progress */
+  @Input() isLoading: boolean = false;
+
+  /** Emitted when the user clicks the refresh button */
+  @Output() refreshRequested = new EventEmitter<void>();
+
   /**
    * The TradingView Lightweight Charts instance.
    */
@@ -64,6 +75,25 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
   /** Active display values (hovered candle takes precedence over latest candle) */
   get displayedBarValues(): ActiveBarValues | null {
     return this.hoveredBarValues || this.latestBarValues;
+  }
+
+  /** Formatted last updated string in US Eastern Time */
+  get lastUpdatedTimeFormatted(): string {
+    if (!this.lastUpdated) return '';
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(this.lastUpdated);
+  }
+
+  /** Handles user click on manual refresh button */
+  onRefreshClicked(): void {
+    if (!this.isLoading) {
+      this.refreshRequested.emit();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -288,39 +318,66 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
   private renderSeriesData(indicators: any): void {
     if (!this.chartInstance || !indicators.bars) return;
 
-    const candleData: CandleBarData[] = indicators.bars.map((bar: any) => {
+    // Ensure strictly ascending unique timestamps for Lightweight Charts
+    const uniqueCandlesMap = new Map<number, CandleBarData>();
+    for (const bar of indicators.bars) {
       let timeSec: number;
       if (typeof bar.timestamp === 'number') {
-        timeSec = bar.timestamp;
+        timeSec = bar.timestamp > 1e11 ? Math.floor(bar.timestamp / 1000) : bar.timestamp;
       } else if (typeof bar.time === 'number') {
         timeSec = bar.time > 1e11 ? Math.floor(bar.time / 1000) : bar.time;
-      } else {
+      } else if (typeof bar.time === 'string') {
         timeSec = Math.floor(new Date(bar.time).getTime() / 1000);
+      } else {
+        continue;
       }
-      return {
+
+      if (isNaN(timeSec)) continue;
+
+      uniqueCandlesMap.set(timeSec, {
         time: timeSec,
-        open: bar.open,
-        high: bar.high,
-        low: bar.low,
-        close: bar.close
-      };
-    }).filter((bar: CandleBarData) => !isNaN(bar.time));
+        open: Number(bar.open),
+        high: Number(bar.high),
+        low: Number(bar.low),
+        close: Number(bar.close)
+      });
+    }
 
-    const ema8Data = indicators.ema8.map((val: number, i: number) => ({
-      time: candleData[i]?.time,
-      value: val
-    })).filter((item: any) => item.value !== null && item.time !== undefined);
+    const candleData: CandleBarData[] = Array.from(uniqueCandlesMap.values())
+      .sort((a, b) => (a.time as number) - (b.time as number));
 
-    const ema21Data = indicators.ema21.map((val: number, i: number) => ({
-      time: candleData[i]?.time,
-      value: val
-    })).filter((item: any) => item.value !== null && item.time !== undefined);
+    // Map EMA series robustly whether the source array is padded with nulls or unpadded
+    const mapEmaSeries = (emaArray: (number | null)[] | undefined): { time: any; value: number }[] => {
+      if (!emaArray || !Array.isArray(emaArray) || candleData.length === 0) return [];
+
+      const isPadded = emaArray.length === candleData.length;
+      const offset = isPadded ? 0 : Math.max(0, candleData.length - emaArray.length);
+
+      return emaArray
+        .map((val, i) => {
+          if (val === null || val === undefined || isNaN(val as number)) return null;
+          const targetIndex = i + offset;
+          const candle = candleData[targetIndex];
+          if (!candle || candle.time === undefined) return null;
+          return {
+            time: candle.time,
+            value: Number(val)
+          };
+        })
+        .filter((item): item is { time: any; value: number } => item !== null);
+    };
+
+    const ema8Data = mapEmaSeries(indicators.ema8);
+    const ema21Data = mapEmaSeries(indicators.ema21);
 
     this.candlestickSeries.setData(candleData);
     this.ema8LineSeries.setData(ema8Data);
     this.ema21LineSeries.setData(ema21Data);
 
     if (candleData.length > 0) {
+      // Ensure the chart's visible range is scrolled to the latest active candle
+      this.chartInstance.timeScale().scrollToRealTime();
+
       const lastCandle = candleData[candleData.length - 1];
       const candleChange = lastCandle.close - lastCandle.open;
       const candleChangePct = lastCandle.open > 0 ? (candleChange / lastCandle.open) * 100 : 0;

@@ -202,7 +202,12 @@
 
   <!-- Full-Width Candlestick Chart Section -->
   <div class="cockpit-chart-section">
-    <app-market-chart [indicators]="chartIndicators"></app-market-chart>
+    <app-market-chart
+      [indicators]="chartIndicators"
+      [lastUpdated]="chartLastUpdated"
+      [isLoading]="chartLoading"
+      (refreshRequested)="onRefreshChart()">
+    </app-market-chart>
   </div>
 
   <!-- Lower Section: Balanced 50/50 Operations Grid -->

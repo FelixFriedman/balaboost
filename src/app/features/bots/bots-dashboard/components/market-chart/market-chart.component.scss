@@ -146,6 +146,68 @@
     letter-spacing: 0.04em;
     font-weight: 700;
   }
+
+  &.update-badge {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+    .update-lbl {
+      color: #64748b;
+    }
+    .update-time {
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+  }
+}
+
+.refresh-chart-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .refresh-icon {
+    font-size: 0.85rem;
+    line-height: 1;
+
+    &.spinning {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .refresh-txt {
+    font-size: 0.7rem;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .color-box {
