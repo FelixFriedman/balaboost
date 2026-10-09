@@ -96,7 +96,8 @@ export function registerIpcHandlers(): void {
       const preview = await pricingEngine.calculateLimitPrice(
         symbol, 
         tags, 
-        riskConfig?.maxSpreadWidth ?? 20
+        riskConfig?.maxSpreadWidth ?? 20,
+        riskConfig?.executionMode || 'adaptive_walk'
       );
       return preview;
     } catch (e: any) {

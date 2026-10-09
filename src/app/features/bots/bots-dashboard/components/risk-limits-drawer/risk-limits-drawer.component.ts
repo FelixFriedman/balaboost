@@ -33,7 +33,14 @@ export class RiskLimitsDrawerComponent implements OnInit {
   localConfig!: AutotradeRiskConfig;
 
   ngOnInit(): void {
-    this.localConfig = { ...this.config };
+    this.localConfig = {
+      executionMode: 'adaptive_walk',
+      walkStepSeconds: 45,
+      walkPriceStep: 0.05,
+      minCreditFloor: 0.50,
+      repriceThresholdPoints: 5.0,
+      ...this.config
+    };
   }
 
   /**
@@ -56,7 +63,12 @@ export class RiskLimitsDrawerComponent implements OnInit {
         cooldownMinutes: 20,
         orderTimeoutMinutes: 2,
         autoResumeOnLaunch: true,
-        maxSpreadWidth: 5
+        maxSpreadWidth: 5,
+        executionMode: 'adaptive_walk',
+        walkStepSeconds: 60,
+        walkPriceStep: 0.05,
+        minCreditFloor: 0.75,
+        repriceThresholdPoints: 5.0
       };
     } else if (preset === 'balanced') {
       this.localConfig = {
@@ -69,7 +81,12 @@ export class RiskLimitsDrawerComponent implements OnInit {
         cooldownMinutes: 15,
         orderTimeoutMinutes: 15,
         autoResumeOnLaunch: true,
-        maxSpreadWidth: 20
+        maxSpreadWidth: 20,
+        executionMode: 'adaptive_walk',
+        walkStepSeconds: 45,
+        walkPriceStep: 0.05,
+        minCreditFloor: 0.50,
+        repriceThresholdPoints: 5.0
       };
     } else if (preset === 'aggressive') {
       this.localConfig = {
@@ -82,7 +99,12 @@ export class RiskLimitsDrawerComponent implements OnInit {
         cooldownMinutes: 10,
         orderTimeoutMinutes: 5,
         autoResumeOnLaunch: true,
-        maxSpreadWidth: 25
+        maxSpreadWidth: 25,
+        executionMode: 'natural_fill',
+        walkStepSeconds: 30,
+        walkPriceStep: 0.05,
+        minCreditFloor: 0.35,
+        repriceThresholdPoints: 4.0
       };
     }
   }

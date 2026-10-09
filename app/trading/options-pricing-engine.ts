@@ -1,10 +1,17 @@
 import { IBrokerMarketData } from '../brokers/broker.interface';
 import { MarketTag } from '../analysis/market-tagger';
 
+export type ExecutionMode = 'adaptive_walk' | 'natural_fill' | 'strict_mid';
+
 export class OptionsPricingEngine {
   constructor(private broker: IBrokerMarketData) {}
 
-  public async calculateLimitPrice(symbol: string, tags: MarketTag[], maxSpreadWidth: number = 20): Promise<any> {
+  public async calculateLimitPrice(
+    symbol: string, 
+    tags: MarketTag[], 
+    maxSpreadWidth: number = 20,
+    executionMode: ExecutionMode = 'adaptive_walk'
+  ): Promise<any> {
     // Step A: Strategy Selection
     let strategy: 'Bull Put Spread' | 'Bear Call Spread' | 'Halt' = 'Halt';
     
@@ -150,10 +157,13 @@ export class OptionsPricingEngine {
       }
     }
 
-    // Step C: Fair Value (Mid Price)
+    // Step C: Fair Value (Mid Price) & Natural Market (Touch) Price
     const shortMid = (shortLeg.bid + shortLeg.ask) / 2;
     const longMid = (longLeg.bid + longLeg.ask) / 2;
     const netCreditMid = shortMid - longMid;
+
+    // Natural Credit: Immediate cross at Market Bid (sell short) and Market Ask (buy long)
+    const naturalCredit = Math.max(0.05, shortLeg.bid - longLeg.ask);
 
     if (netCreditMid <= 0.10) {
       return { 
@@ -162,18 +172,31 @@ export class OptionsPricingEngine {
       };
     }
 
-    // Step D: Tag-Based Aggressiveness
+    // Step D: Execution Mode & Tag-Based Aggressiveness
     let limitPrice = netCreditMid;
     let aggressiveness = 'Neutral';
 
-    if (tags.includes('bull market') || tags.includes('bear market')) {
-      // Strong trend: Give up 5% to guarantee a fast fill
-      limitPrice = netCreditMid * 0.95;
-      aggressiveness = 'Aggressive (Strong Trend)';
-    } else if (tags.includes('oversold market') || tags.includes('overbought market')) {
-      // Extremes: Demand 10% more premium
-      limitPrice = netCreditMid * 1.10;
-      aggressiveness = 'Contrarian Premium (Extreme Market)';
+    if (executionMode === 'natural_fill') {
+      // Natural fill concession for instant paper execution / market fill
+      limitPrice = naturalCredit;
+      aggressiveness = 'Natural Fill (Instant Paper Execution)';
+    } else if (executionMode === 'strict_mid') {
+      limitPrice = netCreditMid;
+      aggressiveness = 'Strict Mid-Price Limit';
+    } else {
+      // 'adaptive_walk' (default): Starts at Mid or slightly concessionary depending on market trend
+      if (tags.includes('bull market') || tags.includes('bear market')) {
+        // Strong trend: Start with 5% edge concession to accelerate discovery
+        limitPrice = netCreditMid * 0.95;
+        aggressiveness = 'Adaptive Walk (Strong Trend - 5% start)';
+      } else if (tags.includes('oversold market') || tags.includes('overbought market')) {
+        // Extremes: Demand 5% more premium as anchor
+        limitPrice = netCreditMid * 1.05;
+        aggressiveness = 'Adaptive Walk (Extreme Market - Premium Anchor)';
+      } else {
+        limitPrice = netCreditMid;
+        aggressiveness = 'Adaptive Walk (Balanced Mid Discovery)';
+      }
     }
 
     // Standard SPX options nickel rounding (nearest $0.05)
@@ -203,7 +226,9 @@ export class OptionsPricingEngine {
         delta: longLeg.greeks?.delta
       },
       netCreditMid: netCreditMid.toFixed(2),
+      naturalCredit: naturalCredit.toFixed(2),
       recommendedLimitPrice: roundedLimitPrice,
+      executionMode,
       aggressiveness,
       spreadWidth,
       maxSpreadWidthCap: maxSpreadWidth,

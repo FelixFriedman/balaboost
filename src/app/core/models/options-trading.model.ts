@@ -158,8 +158,12 @@ export interface TradeRecommendation {
   longLeg?: TradeRecommendationLeg;
   /** Fair-value net credit before aggressiveness adjustment */
   netCreditMid?: string;
+  /** Immediate natural market credit (Short Bid - Long Ask) */
+  naturalCredit?: string;
   /** Exchange tick-size rounded limit price recommendation */
   recommendedLimitPrice?: string;
+  /** Active execution mode */
+  executionMode?: string;
   /** Execution aggressiveness profile based on market tags */
   aggressiveness?: string;
   /** Strike distance in points between short and long legs */

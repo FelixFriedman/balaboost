@@ -97,6 +97,12 @@
             color: #38bdf8;
             font-weight: 700;
           }
+
+          &.execution {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+            font-weight: 700;
+          }
         }
       }
 
@@ -111,6 +117,29 @@
 
         &:focus-within {
           border-color: #8b5cf6;
+        }
+
+        &.select-affix {
+          padding: 0;
+
+          select {
+            flex: 1;
+            background: #0d0e15;
+            border: none;
+            color: #ffffff;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 4px;
+
+            option {
+              background: #181926;
+              color: #e2e8f0;
+            }
+          }
         }
 
         .affix {
@@ -140,6 +169,12 @@
       &.highlight-field {
         .input-with-affix {
           border-color: rgba(239, 68, 68, 0.4);
+        }
+      }
+
+      &.execution-field {
+        .input-with-affix {
+          border-color: rgba(168, 85, 247, 0.4);
         }
       }
 

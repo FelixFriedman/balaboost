@@ -15,7 +15,7 @@ class OptionsPricingEngine {
         this.broker = broker;
     }
     calculateLimitPrice(symbol_1, tags_1) {
-        return __awaiter(this, arguments, void 0, function* (symbol, tags, maxSpreadWidth = 20) {
+        return __awaiter(this, arguments, void 0, function* (symbol, tags, maxSpreadWidth = 20, executionMode = 'adaptive_walk') {
             var _a, _b, _c, _d, _e, _f;
             // Step A: Strategy Selection
             let strategy = 'Halt';
@@ -137,28 +137,46 @@ class OptionsPricingEngine {
                     longLeg = deltaCandidate;
                 }
             }
-            // Step C: Fair Value (Mid Price)
+            // Step C: Fair Value (Mid Price) & Natural Market (Touch) Price
             const shortMid = (shortLeg.bid + shortLeg.ask) / 2;
             const longMid = (longLeg.bid + longLeg.ask) / 2;
             const netCreditMid = shortMid - longMid;
+            // Natural Credit: Immediate cross at Market Bid (sell short) and Market Ask (buy long)
+            const naturalCredit = Math.max(0.05, shortLeg.bid - longLeg.ask);
             if (netCreditMid <= 0.10) {
                 return {
                     action: 'Halt',
                     reason: `Calculated net credit ($${netCreditMid.toFixed(2)}) is insufficient for viable spread entry.`
                 };
             }
-            // Step D: Tag-Based Aggressiveness
+            // Step D: Execution Mode & Tag-Based Aggressiveness
             let limitPrice = netCreditMid;
             let aggressiveness = 'Neutral';
-            if (tags.includes('bull market') || tags.includes('bear market')) {
-                // Strong trend: Give up 5% to guarantee a fast fill
-                limitPrice = netCreditMid * 0.95;
-                aggressiveness = 'Aggressive (Strong Trend)';
+            if (executionMode === 'natural_fill') {
+                // Natural fill concession for instant paper execution / market fill
+                limitPrice = naturalCredit;
+                aggressiveness = 'Natural Fill (Instant Paper Execution)';
             }
-            else if (tags.includes('oversold market') || tags.includes('overbought market')) {
-                // Extremes: Demand 10% more premium
-                limitPrice = netCreditMid * 1.10;
-                aggressiveness = 'Contrarian Premium (Extreme Market)';
+            else if (executionMode === 'strict_mid') {
+                limitPrice = netCreditMid;
+                aggressiveness = 'Strict Mid-Price Limit';
+            }
+            else {
+                // 'adaptive_walk' (default): Starts at Mid or slightly concessionary depending on market trend
+                if (tags.includes('bull market') || tags.includes('bear market')) {
+                    // Strong trend: Start with 5% edge concession to accelerate discovery
+                    limitPrice = netCreditMid * 0.95;
+                    aggressiveness = 'Adaptive Walk (Strong Trend - 5% start)';
+                }
+                else if (tags.includes('oversold market') || tags.includes('overbought market')) {
+                    // Extremes: Demand 5% more premium as anchor
+                    limitPrice = netCreditMid * 1.05;
+                    aggressiveness = 'Adaptive Walk (Extreme Market - Premium Anchor)';
+                }
+                else {
+                    limitPrice = netCreditMid;
+                    aggressiveness = 'Adaptive Walk (Balanced Mid Discovery)';
+                }
             }
             // Standard SPX options nickel rounding (nearest $0.05)
             const roundedLimitPrice = (Math.max(0.10, Math.round(limitPrice * 20) / 20)).toFixed(2);
@@ -186,7 +204,9 @@ class OptionsPricingEngine {
                     delta: (_f = longLeg.greeks) === null || _f === void 0 ? void 0 : _f.delta
                 },
                 netCreditMid: netCreditMid.toFixed(2),
+                naturalCredit: naturalCredit.toFixed(2),
                 recommendedLimitPrice: roundedLimitPrice,
+                executionMode,
                 aggressiveness,
                 spreadWidth,
                 maxSpreadWidthCap: maxSpreadWidth,

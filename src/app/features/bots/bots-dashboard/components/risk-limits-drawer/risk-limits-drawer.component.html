@@ -112,6 +112,75 @@
         <span class="risk-hint">Targets 10Δ wing, capped at {{ localConfig.maxSpreadWidth || 20 }} pts to prevent margin explosion (${{ ((localConfig.maxSpreadWidth || 20) * 100) | number }} max collateral/spread)</span>
       </div>
 
+      <!-- Execution Mode Selector -->
+      <div class="risk-field execution-field">
+        <label for="executionMode">
+          <span>Execution Strategy:</span>
+          <span class="field-badge execution">Pro Execution</span>
+        </label>
+        <div class="input-with-affix select-affix">
+          <select id="executionMode" [(ngModel)]="localConfig.executionMode">
+            <option value="adaptive_walk">🚶 Adaptive Discovery (Walking Limit - Recommended)</option>
+            <option value="natural_fill">⚡ Natural Fill (Instant Paper Execution)</option>
+            <option value="strict_mid">🎯 Strict Mid-Price Limit (Passive Only)</option>
+          </select>
+        </div>
+        <span class="risk-hint">
+          {{ localConfig.executionMode === 'natural_fill' ? 'Crosses natural market bid/ask for instant fills in sandbox' : (localConfig.executionMode === 'strict_mid' ? 'Rests strictly at mid-price; will not cross' : 'Starts at mid and steps limit closer to market every ' + (localConfig.walkStepSeconds || 45) + 's') }}
+        </span>
+      </div>
+
+      <!-- Walking Limit Step Interval -->
+      <div class="risk-field" *ngIf="localConfig.executionMode === 'adaptive_walk'">
+        <label for="walkStep">
+          <span>Walk Step Interval:</span>
+          <span class="field-badge">Adaptive</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="walkStep" type="number" min="15" max="120" step="5" [(ngModel)]="localConfig.walkStepSeconds" />
+          <span class="affix">seconds</span>
+        </div>
+        <span class="risk-hint">Time to wait before stepping price closer to natural market (default: 45s)</span>
+      </div>
+
+      <!-- Walking Limit Price Step -->
+      <div class="risk-field" *ngIf="localConfig.executionMode === 'adaptive_walk'">
+        <label for="walkPriceStep">
+          <span>Price Concession Step:</span>
+        </label>
+        <div class="input-with-affix">
+          <span class="affix">$</span>
+          <input id="walkPriceStep" type="number" min="0.05" max="0.50" step="0.05" [(ngModel)]="localConfig.walkPriceStep" />
+        </div>
+        <span class="risk-hint">Amount to step credit lower each interval ($0.05 nickel is SPX tick size)</span>
+      </div>
+
+      <!-- Minimum Credit Floor -->
+      <div class="risk-field">
+        <label for="creditFloor">
+          <span>Minimum Credit Floor ($):</span>
+          <span class="field-badge">Floor</span>
+        </label>
+        <div class="input-with-affix">
+          <span class="affix">$</span>
+          <input id="creditFloor" type="number" min="0.10" max="5.00" step="0.05" [(ngModel)]="localConfig.minCreditFloor" />
+        </div>
+        <span class="risk-hint">Execution walk stops if credit drops to this floor to protect premium</span>
+      </div>
+
+      <!-- Dynamic Reprice Sensitivity -->
+      <div class="risk-field">
+        <label for="repriceThreshold">
+          <span>Market Move Reprice (pts):</span>
+          <span class="field-badge">Reprice</span>
+        </label>
+        <div class="input-with-affix">
+          <input id="repriceThreshold" type="number" min="2" max="25" step="1" [(ngModel)]="localConfig.repriceThresholdPoints" />
+          <span class="affix">SPX pts</span>
+        </div>
+        <span class="risk-hint">Cancel & re-anchor order if underlying SPX moves by this amount while resting</span>
+      </div>
+
       <!-- Auto-Resume on Launch Toggle -->
       <div class="risk-field auto-resume-field">
         <label class="toggle-container">

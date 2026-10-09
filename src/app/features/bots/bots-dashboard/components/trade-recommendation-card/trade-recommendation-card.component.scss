@@ -272,6 +272,17 @@
     border-radius: var(--radius-sm);
   }
 
+  .natural-val {
+    color: #f59e0b;
+    font-weight: 600;
+  }
+
+  .mode-val {
+    color: #c084fc;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
   &.highlight {
     background: rgba(59, 130, 246, 0.06);
 

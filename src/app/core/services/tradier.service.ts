@@ -168,23 +168,31 @@ export class TradierService {
       action: 'Trade',
       strategy: 'Bull Put Spread',
       symbol: symbol || 'SPX',
-      underlyingPrice: 7654.59,
-      expiration: '2026-11-02',
+      underlyingPrice: 7788.53,
+      expiration: '2026-11-04',
       shortLeg: {
-        symbol: 'SPXW261102P07400000',
-        strike: 7400,
+        symbol: 'SPXW261104P07525000',
+        strike: 7525,
+        bid: 25.6,
+        ask: 26.1,
+        mid: '25.85',
         delta: -0.15
       },
       longLeg: {
-        symbol: 'SPXW261102P07225000',
-        strike: 7225,
-        delta: -0.06
+        symbol: 'SPXW261104P07510000',
+        strike: 7510,
+        bid: 24.2,
+        ask: 24.6,
+        mid: '24.40',
+        delta: -0.14
       },
-      netCreditMid: 11.50,
-      recommendedLimitPrice: 11.50,
-      spreadWidth: 175,
+      netCreditMid: '1.45',
+      naturalCredit: '1.00',
+      recommendedLimitPrice: '1.40',
+      spreadWidth: 15,
       capApplied: true,
-      aggressiveness: 'Balanced Mid-Price',
+      executionMode: 'adaptive_walk',
+      aggressiveness: 'Adaptive Walk (Balanced Mid Discovery)',
       tagsUsed: ['BULL MARKET', 'HEALTHY MOMENTUM']
     };
   }

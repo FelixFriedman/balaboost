@@ -86,7 +86,7 @@ function registerIpcHandlers() {
             const indicators = yield indicatorsService.getIndicators(symbol);
             const tags = marketTagger.evaluate(indicators);
             const riskConfig = autotradeEngine.getState().config;
-            const preview = yield pricingEngine.calculateLimitPrice(symbol, tags, (_a = riskConfig === null || riskConfig === void 0 ? void 0 : riskConfig.maxSpreadWidth) !== null && _a !== void 0 ? _a : 20);
+            const preview = yield pricingEngine.calculateLimitPrice(symbol, tags, (_a = riskConfig === null || riskConfig === void 0 ? void 0 : riskConfig.maxSpreadWidth) !== null && _a !== void 0 ? _a : 20, (riskConfig === null || riskConfig === void 0 ? void 0 : riskConfig.executionMode) || 'adaptive_walk');
             return preview;
         }
         catch (e) {

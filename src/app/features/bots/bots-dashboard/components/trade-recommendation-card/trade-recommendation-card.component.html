@@ -68,12 +68,24 @@
           </span>
         </div>
         <div class="detail-row highlight">
-          <span class="label">Net Credit (Mid)</span>
+          <span class="label">Net Credit (Fair Value Mid)</span>
           <span class="value">${{ tradePreview.netCreditMid }}</span>
+        </div>
+        <div class="detail-row" *ngIf="tradePreview.naturalCredit">
+          <span class="label">Natural Credit (Cross/Market)</span>
+          <span class="value natural-val">${{ tradePreview.naturalCredit }}</span>
         </div>
         <div class="detail-row highlight primary">
           <span class="label">Recommended Limit</span>
           <span class="value">${{ tradePreview.recommendedLimitPrice }}</span>
+        </div>
+        <div class="detail-row" *ngIf="tradePreview.executionMode">
+          <span class="label">Execution Strategy</span>
+          <span class="value mode-val">
+            <span *ngIf="tradePreview.executionMode === 'adaptive_walk'">🚶 Adaptive Walk</span>
+            <span *ngIf="tradePreview.executionMode === 'natural_fill'">⚡ Natural Fill</span>
+            <span *ngIf="tradePreview.executionMode === 'strict_mid'">🎯 Strict Mid</span>
+          </span>
         </div>
         <div class="detail-row">
           <span class="label">Aggressiveness</span>

@@ -1,4 +1,5 @@
 export type AutotradeStatus = 'stopped' | 'running' | 'paused';
+export type ExecutionMode = 'adaptive_walk' | 'natural_fill' | 'strict_mid';
 
 export interface AutotradeRiskConfig {
   symbol: string;
@@ -12,6 +13,11 @@ export interface AutotradeRiskConfig {
   orderTimeoutMinutes?: number;    // Timeout for working orders before auto-cancelling (TTL)
   autoResumeOnLaunch?: boolean;    // Auto-resume autotrade on startup if previously active
   maxSpreadWidth?: number;         // Maximum spread width in points (Hybrid strike cap)
+  executionMode?: ExecutionMode;   // Execution mode: 'adaptive_walk' | 'natural_fill' | 'strict_mid'
+  walkStepSeconds?: number;       // Time in seconds between adaptive walking limit steps (default: 45)
+  walkPriceStep?: number;         // Price concession step in dollars (default: 0.05)
+  minCreditFloor?: number;        // Minimum credit floor in dollars (default: 0.50)
+  repriceThresholdPoints?: number;// SPX point move to trigger dynamic cancel/replace (default: 5.0)
 }
 
 export interface AutotradeLogEntry {
