@@ -285,27 +285,29 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
       case TickMarkType.Month:
         return new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/New_York',
-          month: 'short'
+          month: 'short',
+          year: 'numeric'
         }).format(d);
       case TickMarkType.DayOfMonth:
         return new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/New_York',
+          month: 'short',
           day: 'numeric'
         }).format(d);
       case TickMarkType.Time:
         return new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/New_York',
-          hour: '2-digit',
+          hour: 'numeric',
           minute: '2-digit',
-          hour12: false
+          hour12: true
         }).format(d);
       case TickMarkType.TimeWithSeconds:
         return new Intl.DateTimeFormat('en-US', {
           timeZone: 'America/New_York',
-          hour: '2-digit',
+          hour: 'numeric',
           minute: '2-digit',
           second: '2-digit',
-          hour12: false
+          hour12: true
         }).format(d);
       default:
         return null;
