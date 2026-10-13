@@ -155,6 +155,7 @@ export class MarketChartComponent implements AfterViewInit, OnChanges, OnDestroy
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
+        uniformDistribution: true,
         tickMarkFormatter: (time: any, tickMarkType: TickMarkType) => this.formatTickMark(time, tickMarkType),
       }
     });
