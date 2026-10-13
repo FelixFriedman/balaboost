@@ -39,6 +39,7 @@ export interface WorkingOrderTracker {
   stepCount: number;
   request: SpreadOrderRequest;
   legs: { shortSymbol: string; longSymbol: string };
+  isStepping?: boolean;
 }
 
 export interface AutotradeLogEntry {
@@ -67,6 +68,7 @@ export class AutotradeEngine {
   private status: AutotradeStatus = 'stopped';
   private timer: NodeJS.Timeout | null = null;
   private isScanning: boolean = false;
+  private isCheckingStaleOrders: boolean = false;
 
   private config: AutotradeRiskConfig = {
     symbol: 'SPX',
@@ -211,11 +213,17 @@ export class AutotradeEngine {
    * or before new trade evaluations.
    */
   public async checkAndCleanStaleOrders(): Promise<{ activePendingCount: number; activePositionsCount: number }> {
-    const [orders, positions, balance] = await Promise.all([
-      this.broker.getOrders().catch(() => []),
-      this.broker.getPositions().catch(() => []),
-      this.broker.getAccountBalance().catch(() => null)
-    ]);
+    if (this.isCheckingStaleOrders) {
+      return { activePendingCount: 0, activePositionsCount: this.activePositionsCount };
+    }
+    this.isCheckingStaleOrders = true;
+
+    try {
+      const [orders, positions, balance] = await Promise.all([
+        this.broker.getOrders().catch(() => []),
+        this.broker.getPositions().catch(() => []),
+        this.broker.getAccountBalance().catch(() => null)
+      ]);
 
     // Synchronize realized PnL today from broker closed PnL
     if (balance && typeof balance.closePnL === 'number') {
@@ -309,6 +317,9 @@ export class AutotradeEngine {
       }
 
       const tracker = this.workingOrders.get(String(pOrd.id))!;
+      if (!tracker || tracker.isStepping) {
+        continue;
+      }
       let handledReprice = false;
 
       // 2. Dynamic Repricing: If SPX moves >= repriceThresholdPoints, re-anchor order at current fair value
@@ -320,6 +331,7 @@ export class AutotradeEngine {
           const currentSpx = Array.isArray(quote) ? quote[0]?.last : quote?.last;
           if (currentSpx && Math.abs(currentSpx - tracker.entrySpxPrice) >= repriceThreshold) {
             handledReprice = true;
+            tracker.isStepping = true;
             const spxDiff = (currentSpx - tracker.entrySpxPrice).toFixed(1);
             this.addLog('info', `🔄 Market Move Detected: SPX moved ${Number(spxDiff) > 0 ? '+' : ''}${spxDiff} pts (from ${tracker.entrySpxPrice.toFixed(2)} to ${currentSpx.toFixed(2)}). Re-evaluating order #${pOrd.id}...`);
 
@@ -383,6 +395,7 @@ export class AutotradeEngine {
         if (timeSinceLastWalkSec >= stepIntervalSec) {
           const nextPrice = Math.round((tracker.currentLimitPrice - priceStep) * 100) / 100;
           if (nextPrice >= floor) {
+            tracker.isStepping = true;
             this.addLog('info', `🚶 Walking Limit Order: #${pOrd.id} working for ${Math.round(timeSinceLastWalkSec)}s. Stepping credit limit from $${tracker.currentLimitPrice.toFixed(2)} to $${nextPrice.toFixed(2)} (Step ${tracker.stepCount + 1}) to discover liquidity.`);
             try {
               await this.broker.cancelOrder(pOrd.id);
@@ -401,7 +414,8 @@ export class AutotradeEngine {
                   lastWalkAt: Date.now(),
                   currentLimitPrice: nextPrice,
                   stepCount: tracker.stepCount + 1,
-                  request: walkedReq
+                  request: walkedReq,
+                  isStepping: false
                 });
                 this.addLog('success', `✅ Replacement order #${walkedRes.confirmationNumber} placed @ $${nextPrice.toFixed(2)} credit (Step ${tracker.stepCount + 1}).`);
               }
@@ -421,6 +435,9 @@ export class AutotradeEngine {
     }
 
     return { activePendingCount, activePositionsCount: this.activePositionsCount };
+    } finally {
+      this.isCheckingStaleOrders = false;
+    }
   }
 
   // ----- Automated Evaluation Loop -----

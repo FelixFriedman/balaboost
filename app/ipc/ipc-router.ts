@@ -135,8 +135,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.TRADING_GET_ORDERS, async () => {
     try {
-      // Passively verify and auto-cancel any stale pending orders whenever orders are queried
-      await autotradeEngine.checkAndCleanStaleOrders().catch(() => {});
       return await tradierBroker.getOrders();
     } catch (e: any) {
       console.error('Error fetching orders:', e);
