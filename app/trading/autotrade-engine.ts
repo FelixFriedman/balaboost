@@ -65,10 +65,16 @@ export interface AutotradeState {
 }
 
 export class AutotradeEngine {
+  private static instance: AutotradeEngine | null = null;
+  private static isCheckingStaleOrders: boolean = false;
+
+  public static getInstance(): AutotradeEngine | null {
+    return AutotradeEngine.instance;
+  }
+
   private status: AutotradeStatus = 'stopped';
   private timer: NodeJS.Timeout | null = null;
   private isScanning: boolean = false;
-  private isCheckingStaleOrders: boolean = false;
 
   private config: AutotradeRiskConfig = {
     symbol: 'SPX',
@@ -109,6 +115,12 @@ export class AutotradeEngine {
     initialConfig?: Partial<AutotradeRiskConfig>,
     private logger?: EngineLogger
   ) {
+    if (AutotradeEngine.instance && AutotradeEngine.instance !== this) {
+      console.warn('[AutotradeEngine] Replacing existing engine instance.');
+      AutotradeEngine.instance.stopTimer();
+    }
+    AutotradeEngine.instance = this;
+
     if (initialConfig) {
       this.config = { ...this.config, ...initialConfig };
     }
@@ -213,28 +225,73 @@ export class AutotradeEngine {
    * or before new trade evaluations.
    */
   public async checkAndCleanStaleOrders(): Promise<{ activePendingCount: number; activePositionsCount: number }> {
-    if (this.isCheckingStaleOrders) {
+    if (AutotradeEngine.isCheckingStaleOrders) {
       return { activePendingCount: 0, activePositionsCount: this.activePositionsCount };
     }
-    this.isCheckingStaleOrders = true;
+    AutotradeEngine.isCheckingStaleOrders = true;
 
     try {
-      const [orders, positions, balance] = await Promise.all([
-        this.broker.getOrders().catch(() => []),
-        this.broker.getPositions().catch(() => []),
-        this.broker.getAccountBalance().catch(() => null)
-      ]);
+      const snapshot = await this.fetchBrokerSnapshot();
+      this.syncAccountMetrics(snapshot.positions, snapshot.balance);
+      this.reconcileFilledOrders(snapshot.orders);
 
-    // Synchronize realized PnL today from broker closed PnL
+      const pendingOrders = this.filterPendingOrders(snapshot.orders);
+      const activePendingCount = await this.processWorkingOrders(pendingOrders);
+
+      return { activePendingCount, activePositionsCount: this.activePositionsCount };
+    } finally {
+      AutotradeEngine.isCheckingStaleOrders = false;
+    }
+  }
+
+  /**
+   * Fetches current broker state: orders, positions, and account balance in parallel.
+   */
+  private async fetchBrokerSnapshot(): Promise<{ orders: any[]; positions: any[]; balance: any }> {
+    const [orders, positions, balance] = await Promise.all([
+      this.broker.getOrders().catch(() => []),
+      this.broker.getPositions().catch(() => []),
+      this.broker.getAccountBalance().catch(() => null)
+    ]);
+    return {
+      orders: Array.isArray(orders) ? orders : [],
+      positions: Array.isArray(positions) ? positions : [],
+      balance
+    };
+  }
+
+  /**
+   * Synchronizes realized PnL and active open position short counts.
+   */
+  private syncAccountMetrics(positions: any[], balance: any): void {
     if (balance && typeof balance.closePnL === 'number') {
       this.todayRealizedPnL = balance.closePnL;
     }
-
-    // Each vertical credit spread consists of one short leg (quantity < 0)
-    const shortPositions = Array.isArray(positions) ? positions.filter((p: any) => p.quantity < 0) : [];
+    const shortPositions = positions.filter((p: any) => p.quantity < 0);
     this.activePositionsCount = shortPositions.length;
+  }
 
-    const pendingOrders = Array.isArray(orders) ? orders.filter((o: any) => 
+  /**
+   * Reconciles filled orders against tracked working orders and emits fill notices.
+   */
+  private reconcileFilledOrders(orders: any[]): void {
+    const pendingOrderIds = new Set(this.filterPendingOrders(orders).map((o: any) => String(o.id)));
+    for (const [trackedId, tracker] of this.workingOrders.entries()) {
+      if (!pendingOrderIds.has(trackedId)) {
+        const filledOrder = orders.find((o: any) => String(o.id) === trackedId && o.status === 'filled');
+        if (filledOrder) {
+          this.addLog('success', `🎉 Order #${trackedId} filled @ $${tracker.currentLimitPrice.toFixed(2)} credit! (Step ${tracker.stepCount})`);
+        }
+        this.workingOrders.delete(trackedId);
+      }
+    }
+  }
+
+  /**
+   * Filters orders in open/pending/unfilled states.
+   */
+  private filterPendingOrders(orders: any[]): any[] {
+    return orders.filter((o: any) => 
       o.status === 'pending' || 
       o.status === 'open' || 
       o.status === 'submitted' || 
@@ -242,20 +299,13 @@ export class AutotradeEngine {
       o.status === 'queued' || 
       o.status === 'held' ||
       o.status === 'partially_filled'
-    ) : [];
+    );
+  }
 
-    // 1. Detect any previously tracked order that was filled
-    const pendingOrderIds = new Set(pendingOrders.map((o: any) => String(o.id)));
-    for (const [trackedId, tracker] of this.workingOrders.entries()) {
-      if (!pendingOrderIds.has(trackedId)) {
-        const filledOrder = Array.isArray(orders) ? orders.find((o: any) => String(o.id) === trackedId && o.status === 'filled') : null;
-        if (filledOrder) {
-          this.addLog('success', `🎉 Order #${trackedId} filled @ $${tracker.currentLimitPrice.toFixed(2)} credit! (Step ${tracker.stepCount})`);
-        }
-        this.workingOrders.delete(trackedId);
-      }
-    }
-
+  /**
+   * Processes all active pending orders: checks TTL timeouts, dynamic repricing, and walking steps.
+   */
+  private async processWorkingOrders(pendingOrders: any[]): Promise<number> {
     let activePendingCount = 0;
     const timeoutLimit = this.config.orderTimeoutMinutes || 15;
 
@@ -264,179 +314,213 @@ export class AutotradeEngine {
       const createTime = orderDateStr ? new Date(orderDateStr).getTime() : Date.now();
       const ageMinutes = (Date.now() - createTime) / (1000 * 60);
 
-      // Timeout check (TTL): Hard safety auto-cancel
+      // 1. Timeout check (TTL): Hard safety auto-cancel
       if (ageMinutes >= timeoutLimit) {
-        this.addLog('warn', `⏱️ Stale Order Detected: #${pOrd.id} has been working for ${ageMinutes.toFixed(1)}m (exceeded ${timeoutLimit}m TTL). Auto-cancelling to release buying power.`);
-        this.workingOrders.delete(String(pOrd.id));
-        try {
-          await this.broker.cancelOrder(pOrd.id);
-          this.addLog('info', `Order #${pOrd.id} cancel request submitted to broker.`);
-        } catch (err: any) {
-          this.addLog('error', `Failed to auto-cancel timed out order #${pOrd.id}: ${err.message || String(err)}`);
-        }
+        await this.handleOrderTimeout(pOrd, ageMinutes, timeoutLimit);
         continue;
       }
 
       activePendingCount++;
-      const remaining = (timeoutLimit - ageMinutes).toFixed(1);
-
-      // Ensure tracker exists for this working order
-      if (!this.workingOrders.has(String(pOrd.id))) {
-        const pPrice = typeof pOrd.price === 'number' ? pOrd.price : parseFloat(pOrd.price || '0');
-        const pLegs = Array.isArray(pOrd.leg) ? pOrd.leg : [];
-        const shortLeg = pLegs.find((l: any) => l.side?.includes('sell')) || pLegs[0];
-        const longLeg = pLegs.find((l: any) => l.side?.includes('buy')) || pLegs[1];
-        const isPut = pLegs.some((l: any) => l.option_symbol?.includes('P'));
-        const strat: 'Bull Put Spread' | 'Bear Call Spread' = isPut ? 'Bull Put Spread' : 'Bear Call Spread';
-
-        this.workingOrders.set(String(pOrd.id), {
-          orderId: String(pOrd.id),
-          placedAt: createTime,
-          lastWalkAt: Date.now(),
-          initialLimitPrice: pPrice,
-          currentLimitPrice: pPrice,
-          entrySpxPrice: 0,
-          stepCount: 0,
-          request: {
-            symbol: pOrd.symbol || 'SPX',
-            strategy: strat,
-            duration: 'day',
-            orderType: 'credit',
-            limitPrice: pPrice,
-            legs: pLegs.map((l: any) => ({
-              optionSymbol: l.option_symbol,
-              side: l.side,
-              quantity: l.quantity || 1
-            }))
-          },
-          legs: {
-            shortSymbol: shortLeg?.option_symbol || '',
-            longSymbol: longLeg?.option_symbol || ''
-          }
-        });
-      }
-
-      const tracker = this.workingOrders.get(String(pOrd.id))!;
-      if (!tracker || tracker.isStepping) {
+      const tracker = this.getOrCreateTracker(pOrd, createTime);
+      if (tracker.isStepping) {
         continue;
       }
-      let handledReprice = false;
 
-      // 2. Dynamic Repricing: If SPX moves >= repriceThresholdPoints, re-anchor order at current fair value
-      const repriceThreshold = this.config.repriceThresholdPoints ?? 5.0;
-      if (repriceThreshold > 0 && tracker.entrySpxPrice > 0) {
-        try {
-          const quoteRes = await this.broker.getQuote(this.config.symbol);
-          const quote = quoteRes?.quotes?.quote;
-          const currentSpx = Array.isArray(quote) ? quote[0]?.last : quote?.last;
-          if (currentSpx && Math.abs(currentSpx - tracker.entrySpxPrice) >= repriceThreshold) {
-            handledReprice = true;
-            tracker.isStepping = true;
-            const spxDiff = (currentSpx - tracker.entrySpxPrice).toFixed(1);
-            this.addLog('info', `🔄 Market Move Detected: SPX moved ${Number(spxDiff) > 0 ? '+' : ''}${spxDiff} pts (from ${tracker.entrySpxPrice.toFixed(2)} to ${currentSpx.toFixed(2)}). Re-evaluating order #${pOrd.id}...`);
-
-            const indicators = await this.indicatorsService.getIndicators(this.config.symbol);
-            const tags = this.marketTagger.evaluate(indicators);
-            const freshPreview = await this.pricingEngine.calculateLimitPrice(
-              this.config.symbol,
-              tags,
-              this.config.maxSpreadWidth ?? 20,
-              this.config.executionMode || 'adaptive_walk'
-            );
-
-            if (freshPreview.action === 'Trade') {
-              const newLimit = parseFloat(freshPreview.recommendedLimitPrice);
-              this.addLog('warn', `🔄 Dynamic Reprice: Canceling order #${pOrd.id} to re-anchor spread at fresh limit credit $${newLimit.toFixed(2)}.`);
-              await this.broker.cancelOrder(pOrd.id);
-              this.workingOrders.delete(String(pOrd.id));
-
-              const repriceReq: SpreadOrderRequest = {
-                symbol: this.config.symbol,
-                strategy: freshPreview.strategy,
-                duration: 'day',
-                orderType: 'credit',
-                limitPrice: newLimit,
-                legs: [
-                  { optionSymbol: freshPreview.shortLeg.symbol, side: 'sell_to_open', quantity: this.config.contractsPerTrade },
-                  { optionSymbol: freshPreview.longLeg.symbol, side: 'buy_to_open', quantity: this.config.contractsPerTrade }
-                ]
-              };
-
-              const repriceRes = await this.broker.placeSpreadOrder(repriceReq);
-              if (repriceRes.success && repriceRes.confirmationNumber) {
-                this.workingOrders.set(String(repriceRes.confirmationNumber), {
-                  orderId: String(repriceRes.confirmationNumber),
-                  placedAt: Date.now(),
-                  lastWalkAt: Date.now(),
-                  initialLimitPrice: newLimit,
-                  currentLimitPrice: newLimit,
-                  entrySpxPrice: currentSpx,
-                  stepCount: 0,
-                  request: repriceReq,
-                  legs: { shortSymbol: freshPreview.shortLeg.symbol, longSymbol: freshPreview.longLeg.symbol }
-                });
-                this.addLog('success', `✅ Re-anchored Order #${repriceRes.confirmationNumber} placed @ $${newLimit.toFixed(2)} credit.`);
-              }
-            }
-          }
-        } catch (repriceErr: any) {
-          console.warn('[AutotradeEngine] Error evaluating dynamic reprice:', repriceErr);
-        }
+      // 2. Dynamic Reprice if SPX moved >= threshold
+      const repriced = await this.evaluateDynamicReprice(pOrd, tracker);
+      if (repriced) {
+        continue;
       }
 
-      // 3. Adaptive Walking Limit Discovery: Step price closer to natural market every walkStepSeconds
-      const mode = this.config.executionMode || 'adaptive_walk';
-      if (!handledReprice && mode === 'adaptive_walk') {
-        const stepIntervalSec = this.config.walkStepSeconds || 45;
-        const priceStep = this.config.walkPriceStep || 0.05;
-        const floor = this.config.minCreditFloor ?? 0.50;
-        const timeSinceLastWalkSec = (Date.now() - tracker.lastWalkAt) / 1000;
-
-        if (timeSinceLastWalkSec >= stepIntervalSec) {
-          const nextPrice = Math.round((tracker.currentLimitPrice - priceStep) * 100) / 100;
-          if (nextPrice >= floor) {
-            tracker.isStepping = true;
-            this.addLog('info', `🚶 Walking Limit Order: #${pOrd.id} working for ${Math.round(timeSinceLastWalkSec)}s. Stepping credit limit from $${tracker.currentLimitPrice.toFixed(2)} to $${nextPrice.toFixed(2)} (Step ${tracker.stepCount + 1}) to discover liquidity.`);
-            try {
-              await this.broker.cancelOrder(pOrd.id);
-              this.workingOrders.delete(String(pOrd.id));
-
-              const walkedReq: SpreadOrderRequest = {
-                ...tracker.request,
-                limitPrice: nextPrice
-              };
-
-              const walkedRes = await this.broker.placeSpreadOrder(walkedReq);
-              if (walkedRes.success && walkedRes.confirmationNumber) {
-                this.workingOrders.set(String(walkedRes.confirmationNumber), {
-                  ...tracker,
-                  orderId: String(walkedRes.confirmationNumber),
-                  lastWalkAt: Date.now(),
-                  currentLimitPrice: nextPrice,
-                  stepCount: tracker.stepCount + 1,
-                  request: walkedReq,
-                  isStepping: false
-                });
-                this.addLog('success', `✅ Replacement order #${walkedRes.confirmationNumber} placed @ $${nextPrice.toFixed(2)} credit (Step ${tracker.stepCount + 1}).`);
-              }
-            } catch (walkErr: any) {
-              this.addLog('error', `Failed to step walking limit order #${pOrd.id}: ${walkErr.message || String(walkErr)}`);
-            }
-          } else {
-            this.lastScanDecision = `Wait: Order #${pOrd.id} working @ floor $${floor.toFixed(2)} (${ageMinutes.toFixed(1)}m/${timeoutLimit}m TTL).`;
-          }
-        } else {
-          const walkRemaining = Math.max(0, Math.round(stepIntervalSec - timeSinceLastWalkSec));
-          this.lastScanDecision = `Wait: Order #${pOrd.id} working @ $${tracker.currentLimitPrice.toFixed(2)} credit (Next step in ${walkRemaining}s, ~${remaining}m TTL).`;
-        }
-      } else {
-        this.lastScanDecision = `Wait: Order #${pOrd.id} working (${ageMinutes.toFixed(1)}m/${timeoutLimit}m TTL, ~${remaining}m until auto-cancel).`;
-      }
+      // 3. Adaptive Walking Limit Discovery step
+      await this.evaluateWalkingLimit(pOrd, tracker, ageMinutes, timeoutLimit);
     }
 
-    return { activePendingCount, activePositionsCount: this.activePositionsCount };
-    } finally {
-      this.isCheckingStaleOrders = false;
+    return activePendingCount;
+  }
+
+  /**
+   * Auto-cancels an order that exceeded its maximum time-to-live (TTL).
+   */
+  private async handleOrderTimeout(pOrd: any, ageMinutes: number, timeoutLimit: number): Promise<void> {
+    this.addLog('warn', `⏱️ Stale Order Detected: #${pOrd.id} has been working for ${ageMinutes.toFixed(1)}m (exceeded ${timeoutLimit}m TTL). Auto-cancelling to release buying power.`);
+    this.workingOrders.delete(String(pOrd.id));
+    try {
+      await this.broker.cancelOrder(pOrd.id);
+      this.addLog('info', `Order #${pOrd.id} cancel request submitted to broker.`);
+    } catch (err: any) {
+      this.addLog('error', `Failed to auto-cancel timed out order #${pOrd.id}: ${err.message || String(err)}`);
+    }
+  }
+
+  /**
+   * Retrieves or constructs a working order tracker for an active pending order.
+   */
+  private getOrCreateTracker(pOrd: any, createTime: number): WorkingOrderTracker {
+    if (!this.workingOrders.has(String(pOrd.id))) {
+      const pPrice = typeof pOrd.price === 'number' ? pOrd.price : parseFloat(pOrd.price || '0');
+      const pLegs = Array.isArray(pOrd.leg) ? pOrd.leg : [];
+      const shortLeg = pLegs.find((l: any) => l.side?.includes('sell')) || pLegs[0];
+      const longLeg = pLegs.find((l: any) => l.side?.includes('buy')) || pLegs[1];
+      const isPut = pLegs.some((l: any) => l.option_symbol?.includes('P'));
+      const strat: 'Bull Put Spread' | 'Bear Call Spread' = isPut ? 'Bull Put Spread' : 'Bear Call Spread';
+
+      this.workingOrders.set(String(pOrd.id), {
+        orderId: String(pOrd.id),
+        placedAt: createTime,
+        lastWalkAt: Date.now(),
+        initialLimitPrice: pPrice,
+        currentLimitPrice: pPrice,
+        entrySpxPrice: 0,
+        stepCount: 0,
+        request: {
+          symbol: pOrd.symbol || 'SPX',
+          strategy: strat,
+          duration: 'day',
+          orderType: 'credit',
+          limitPrice: pPrice,
+          legs: pLegs.map((l: any) => ({
+            optionSymbol: l.option_symbol,
+            side: l.side,
+            quantity: l.quantity || 1
+          }))
+        },
+        legs: {
+          shortSymbol: shortLeg?.option_symbol || '',
+          longSymbol: longLeg?.option_symbol || ''
+        }
+      });
+    }
+    return this.workingOrders.get(String(pOrd.id))!;
+  }
+
+  /**
+   * Reprices an order if SPX moved beyond repriceThresholdPoints.
+   */
+  private async evaluateDynamicReprice(pOrd: any, tracker: WorkingOrderTracker): Promise<boolean> {
+    const repriceThreshold = this.config.repriceThresholdPoints ?? 5.0;
+    if (repriceThreshold <= 0 || tracker.entrySpxPrice <= 0) {
+      return false;
+    }
+
+    try {
+      const quoteRes = await this.broker.getQuote(this.config.symbol);
+      const quote = quoteRes?.quotes?.quote;
+      const currentSpx = Array.isArray(quote) ? quote[0]?.last : quote?.last;
+      if (currentSpx && Math.abs(currentSpx - tracker.entrySpxPrice) >= repriceThreshold) {
+        tracker.isStepping = true;
+        const spxDiff = (currentSpx - tracker.entrySpxPrice).toFixed(1);
+        this.addLog('info', `🔄 Market Move Detected: SPX moved ${Number(spxDiff) > 0 ? '+' : ''}${spxDiff} pts (from ${tracker.entrySpxPrice.toFixed(2)} to ${currentSpx.toFixed(2)}). Re-evaluating order #${pOrd.id}...`);
+
+        const indicators = await this.indicatorsService.getIndicators(this.config.symbol);
+        const tags = this.marketTagger.evaluate(indicators);
+        const freshPreview = await this.pricingEngine.calculateLimitPrice(
+          this.config.symbol,
+          tags,
+          this.config.maxSpreadWidth ?? 20,
+          this.config.executionMode || 'adaptive_walk'
+        );
+
+        if (freshPreview.action === 'Trade') {
+          const newLimit = parseFloat(freshPreview.recommendedLimitPrice);
+          this.addLog('warn', `🔄 Dynamic Reprice: Canceling order #${pOrd.id} to re-anchor spread at fresh limit credit $${newLimit.toFixed(2)}.`);
+          await this.broker.cancelOrder(pOrd.id);
+          this.workingOrders.delete(String(pOrd.id));
+
+          const repriceReq: SpreadOrderRequest = {
+            symbol: this.config.symbol,
+            strategy: freshPreview.strategy,
+            duration: 'day',
+            orderType: 'credit',
+            limitPrice: newLimit,
+            legs: [
+              { optionSymbol: freshPreview.shortLeg.symbol, side: 'sell_to_open', quantity: this.config.contractsPerTrade },
+              { optionSymbol: freshPreview.longLeg.symbol, side: 'buy_to_open', quantity: this.config.contractsPerTrade }
+            ]
+          };
+
+          const repriceRes = await this.broker.placeSpreadOrder(repriceReq);
+          if (repriceRes.success && repriceRes.confirmationNumber) {
+            this.workingOrders.set(String(repriceRes.confirmationNumber), {
+              orderId: String(repriceRes.confirmationNumber),
+              placedAt: Date.now(),
+              lastWalkAt: Date.now(),
+              initialLimitPrice: newLimit,
+              currentLimitPrice: newLimit,
+              entrySpxPrice: currentSpx,
+              stepCount: 0,
+              request: repriceReq,
+              legs: { shortSymbol: freshPreview.shortLeg.symbol, longSymbol: freshPreview.longLeg.symbol }
+            });
+            this.addLog('success', `✅ Re-anchored Order #${repriceRes.confirmationNumber} placed @ $${newLimit.toFixed(2)} credit.`);
+            return true;
+          }
+        }
+      }
+    } catch (repriceErr: any) {
+      console.warn('[AutotradeEngine] Error evaluating dynamic reprice:', repriceErr);
+    }
+    return false;
+  }
+
+  /**
+   * Steps an adaptive walking limit order toward natural market price every walkStepSeconds.
+   */
+  private async evaluateWalkingLimit(
+    pOrd: any,
+    tracker: WorkingOrderTracker,
+    ageMinutes: number,
+    timeoutLimit: number
+  ): Promise<void> {
+    const mode = this.config.executionMode || 'adaptive_walk';
+    if (mode !== 'adaptive_walk') {
+      const remaining = (timeoutLimit - ageMinutes).toFixed(1);
+      this.lastScanDecision = `Wait: Order #${pOrd.id} working (${ageMinutes.toFixed(1)}m/${timeoutLimit}m TTL, ~${remaining}m until auto-cancel).`;
+      return;
+    }
+
+    const stepIntervalSec = this.config.walkStepSeconds || 45;
+    const priceStep = this.config.walkPriceStep || 0.05;
+    const floor = this.config.minCreditFloor ?? 0.50;
+    const timeSinceLastWalkSec = (Date.now() - tracker.lastWalkAt) / 1000;
+
+    if (timeSinceLastWalkSec >= stepIntervalSec) {
+      const nextPrice = Math.round((tracker.currentLimitPrice - priceStep) * 100) / 100;
+      if (nextPrice >= floor) {
+        tracker.isStepping = true;
+        this.addLog('info', `🚶 Walking Limit Order: #${pOrd.id} working for ${Math.round(timeSinceLastWalkSec)}s. Stepping credit limit from $${tracker.currentLimitPrice.toFixed(2)} to $${nextPrice.toFixed(2)} (Step ${tracker.stepCount + 1}) to discover liquidity.`);
+        try {
+          await this.broker.cancelOrder(pOrd.id);
+          this.workingOrders.delete(String(pOrd.id));
+
+          const walkedReq: SpreadOrderRequest = {
+            ...tracker.request,
+            limitPrice: nextPrice
+          };
+
+          const walkedRes = await this.broker.placeSpreadOrder(walkedReq);
+          if (walkedRes.success && walkedRes.confirmationNumber) {
+            this.workingOrders.set(String(walkedRes.confirmationNumber), {
+              ...tracker,
+              orderId: String(walkedRes.confirmationNumber),
+              lastWalkAt: Date.now(),
+              currentLimitPrice: nextPrice,
+              stepCount: tracker.stepCount + 1,
+              request: walkedReq,
+              isStepping: false
+            });
+            this.addLog('success', `✅ Replacement order #${walkedRes.confirmationNumber} placed @ $${nextPrice.toFixed(2)} credit (Step ${tracker.stepCount + 1}).`);
+          }
+        } catch (walkErr: any) {
+          this.addLog('error', `Failed to step walking limit order #${pOrd.id}: ${walkErr.message || String(walkErr)}`);
+        }
+      } else {
+        this.lastScanDecision = `Wait: Order #${pOrd.id} working @ floor $${floor.toFixed(2)} (${ageMinutes.toFixed(1)}m/${timeoutLimit}m TTL).`;
+      }
+    } else {
+      const walkRemaining = Math.max(0, Math.round(stepIntervalSec - timeSinceLastWalkSec));
+      const remaining = (timeoutLimit - ageMinutes).toFixed(1);
+      this.lastScanDecision = `Wait: Order #${pOrd.id} working @ $${tracker.currentLimitPrice.toFixed(2)} credit (Next step in ${walkRemaining}s, ~${remaining}m TTL).`;
     }
   }
 

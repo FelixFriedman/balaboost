@@ -123,8 +123,6 @@ function registerIpcHandlers() {
     }));
     electron_1.ipcMain.handle(ipc_channels_1.IPC.TRADING_GET_ORDERS, () => __awaiter(this, void 0, void 0, function* () {
         try {
-            // Passively verify and auto-cancel any stale pending orders whenever orders are queried
-            yield autotradeEngine.checkAndCleanStaleOrders().catch(() => { });
             return yield tradierBroker.getOrders();
         }
         catch (e) {
